@@ -75,13 +75,16 @@
         s.grids.forEach((g, gi) => g.rows.forEach((r, ri) => {
           const idx = cols.grids[gi][ri];
           if (idx < 0) return;
-          const sc = toScore(row[idx]);
-          if (sc == null) return;
+          // checkbox grids (dentistry) allow several answers in one cell: "موافق, الى حد ما"
+          const scores = String(row[idx] ?? "").split(/\s*,\s*/).map(toScore).filter((v) => v != null);
+          if (!scores.length) return;
           answered = true;
-          st.sum += sc; st.count++; st.dist[sc - 1]++;
           const c = r.c;
           st.crit[c] = st.crit[c] || { sum: 0, count: 0 };
-          st.crit[c].sum += sc; st.crit[c].count++;
+          for (const sc of scores) {
+            st.sum += sc; st.count++; st.dist[sc - 1]++;
+            st.crit[c].sum += sc; st.crit[c].count++;
+          }
         }));
         if (answered) st.respondents++;
         cols.comments.forEach((idx) => {
