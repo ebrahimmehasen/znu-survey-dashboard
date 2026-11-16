@@ -2,8 +2,8 @@
 
 داش بورد لنتائج **استبيان تقييم أعضاء هيئة التدريس والهيئة المعاونة** في **جامعة الزقازيق الأهلية**، مقسمة حسب الكلية ← البرنامج ← المستوى.
 
-🔗 **الداش بورد:** https://ebrahimmehasen.github.io/znu-survey-dashboard/
-🧪 **معاينة ببيانات تجريبية:** https://ebrahimmehasen.github.io/znu-survey-dashboard/?demo
+🔗 **الداش بورد:** https://znu-survey-dashboard.vercel.app (ونسخة على GitHub Pages: https://ebrahimmehasen.github.io/znu-survey-dashboard/)
+🧪 **معاينة ببيانات تجريبية:** https://znu-survey-dashboard.vercel.app/?demo
 
 ## فيها إيه
 - نظرة عامة على الجامعة ومقارنة بين الكليات، وملخص لكل كلية ومقارنة بين برامجها
