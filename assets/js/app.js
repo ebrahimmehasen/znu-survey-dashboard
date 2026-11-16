@@ -80,7 +80,7 @@
     }
   }
 
-  async function fetchSheet(url) {
+  async function fetchSheet(url, attempt = 1) {
     const u = toCsvUrl(url);
     const NOT_SHARED = "شيت الردود مش متشارك للعامة — لازم يتعمل Share لـ Anyone with the link (Viewer)";
     let res;
@@ -88,6 +88,12 @@
     if (res.status === 401 || res.status === 403) throw new Error(NOT_SHARED);
     if (!res.ok) throw new Error("تعذر قراءة الشيت (" + res.status + ")");
     const text = await res.text();
+    // The published copy answers "Loading..." while its imported data recalculates.
+    if (/^\s*Loading\.*\s*$/i.test(text)) {
+      if (attempt >= 4) throw new Error("الشيت بيتحدث دلوقتي — جرّب ↻ تحديث بعد دقيقة");
+      await new Promise((r) => setTimeout(r, 3000 * attempt));
+      return fetchSheet(url, attempt + 1);
+    }
     if (/^\s*<!doctype html|<html/i.test(text)) throw new Error("الشيت مش متاح للعامة — اعمله Share لـ Anyone with the link");
     const data = Papa.parse(text, { skipEmptyLines: true }).data;
     return { headers: data[0] || [], rows: data.slice(1) };
