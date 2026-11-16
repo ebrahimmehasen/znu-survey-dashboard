@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>داش بورد استطلاع الرأي | جامعة الزقازيق الأهلية</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div class="bg" id="bg"></div>
+
+  <div class="layout">
+    <aside class="sidebar glass" id="sidebar">
+      <div class="brand">
+        <img id="logo" alt="شعار الجامعة" />
+        <div>
+          <div class="brand-ar" id="uniNameAr"></div>
+          <div class="brand-en" id="uniNameEn"></div>
+        </div>
+      </div>
+      <nav id="nav"></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar glass">
+        <button class="menu-btn" id="menuBtn" aria-label="القائمة">☰</button>
+        <div>
+          <h1 id="pageTitle">نظرة عامة</h1>
+          <div class="crumb" id="pageSub"></div>
+        </div>
+        <div class="top-actions">
+          <span class="updated" id="updated"></span>
+          <button class="btn" id="refreshBtn">↻ تحديث</button>
+        </div>
+      </header>
+
+      <section id="content"></section>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/analyze.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
