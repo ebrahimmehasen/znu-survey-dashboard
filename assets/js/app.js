@@ -62,8 +62,11 @@
 
   async function fetchSheet(url) {
     const u = toCsvUrl(url);
-    const res = await fetch(u + (u.includes("?") ? "&" : "?") + "_=" + Date.now());
-    if (!res.ok) throw new Error("تعذر قراءة الشيت (" + res.status + ") — تأكد إن الشيت متشارك لأي حد معاه اللينك");
+    const NOT_SHARED = "شيت الردود مش متشارك للعامة — لازم يتعمل Share لـ Anyone with the link (Viewer)";
+    let res;
+    try { res = await fetch(u + (u.includes("?") ? "&" : "?") + "_=" + Date.now()); } catch { throw new Error(NOT_SHARED); }
+    if (res.status === 401 || res.status === 403) throw new Error(NOT_SHARED);
+    if (!res.ok) throw new Error("تعذر قراءة الشيت (" + res.status + ")");
     const text = await res.text();
     if (/^\s*<!doctype html|<html/i.test(text)) throw new Error("الشيت مش متاح للعامة — اعمله Share لـ Anyone with the link");
     const data = Papa.parse(text, { skipEmptyLines: true }).data;
