@@ -1,140 +1,111 @@
 /*
- * تحليل ردود Google Forms بشكل عام:
- * - بيكتشف أسئلة المقياس (ممتاز/جيد جدا/... أو موافق بشدة/... أو أرقام 1-5)
- * - بيجمع أسئلة الجريد (Question [Item]) مع بعض
- * - بيصنف كل سؤال: دكاترة / معيدين / مواد / عام
+ * تحليل ردود الاستبيان بالاعتماد على شكل الفورم (data/forms.json)
+ * - كل قسم في الفورم = عضو هيئة تدريس أو هيئة معاونة (ومعاه المادة في فورمز التجارة)
+ * - أعمدة الشيت بتتربط بالأقسام بالترتيب، لأن عناوين الأعمدة بتتكرر في كل قسم
  */
 (function () {
   const norm = (s) =>
     String(s ?? "")
-      .replace(/[ً-ْـ]/g, "") // تشكيل وتطويل
-      .replace(/[إأآا]/g, "ا")
-      .replace(/ى/g, "ي")
-      .replace(/ة/g, "ه")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
+      .replace(/[ً-ْـ]/g, "")
+      .replace(/[إأآا]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/[ھہ]/g, "ه").replace(/[یي]/g, "ي")
+      .replace(/[.\s]+$/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 
-  const SCALE = {
-    5: ["ممتاز", "ممتازه", "موافق بشده", "موافق تماما", "راض جدا", "راضي جدا", "دايما", "دائما", "عالي جدا", "excellent", "strongly agree", "always", "very satisfied"],
-    4: ["جيد جدا", "موافق", "راض", "راضي", "غالبا", "عالي", "very good", "agree", "often", "satisfied"],
-    3: ["جيد", "محايد", "احيانا", "متوسط", "الي حد ما", "إلى حد ما", "good", "neutral", "sometimes", "average"],
-    2: ["مقبول", "غير موافق", "نادرا", "منخفض", "غير راض", "fair", "disagree", "rarely", "dissatisfied"],
-    1: ["ضعيف", "غير موافق بشده", "غير موافق تماما", "ابدا", "سيء", "سئ", "منخفض جدا", "غير راض تماما", "poor", "strongly disagree", "never", "very dissatisfied"],
-  };
-  const SCALE_MAP = new Map();
-  for (const [score, words] of Object.entries(SCALE)) for (const w of words) SCALE_MAP.set(norm(w), +score);
-
-  function toScore(v) {
+  const SCORE = new Map(Object.entries({
+    "موافق تماما": 5, "موافق بشده": 5, "ممتاز": 5,
+    "موافق": 4, "جيد جدا": 4,
+    "الي حد ما": 3, "محايد": 3, "جيد": 3,
+    "غير موافق": 2, "مقبول": 2,
+    "غير موافق تماما": 1, "غير موافق بشده": 1, "ضعيف": 1,
+  }));
+  const toScore = (v) => {
     const n = norm(v);
     if (!n) return null;
-    if (SCALE_MAP.has(n)) return SCALE_MAP.get(n);
-    if (/^\d+(\.\d+)?$/.test(n)) return +n;
-    return undefined; // مش قيمة مقياس
-  }
-
-  const CATS = {
-    doctors: /دكتور|الدكتور|\bد\s*\.|استاذ|عضو هيئه|المحاضر|doctor|professor|lecturer/,
-    tas: /معيد|المعيد|مدرس مساعد|هيئه معاونه|teaching assistant|\bta\b/,
-    courses: /ماده|الماده|مقرر|المقرر|كورس|المنهج|course|subject/,
+    if (SCORE.has(n)) return SCORE.get(n);
+    return /^[1-5]$/.test(n) ? +n : null;
   };
-  function categorize(text) {
-    const n = norm(text);
-    if (CATS.tas.test(n)) return "tas";
-    if (CATS.doctors.test(n)) return "doctors";
-    if (CATS.courses.test(n)) return "courses";
-    return "general";
-  }
 
-  const SKIP = /timestamp|طابع زمني|الطابع الزمني|email|البريد|الايميل|اسم الطالب|student name|الرقم القومي|كود الطالب|رقم الهاتف|phone/;
+  const bracket = (h) => { const m = String(h).match(/\[(.*)\]\s*$/s); return m ? norm(m[1]) : null; };
 
-  function analyze(rows, headers) {
-    const result = {
-      responses: rows.length,
-      lastResponse: null,
-      categories: { doctors: [], tas: [], courses: [], general: [] },
-      choices: [],
-      texts: [],
+  // يربط كل قسم بأرقام أعمدته في الشيت
+  function mapColumns(schema, headers) {
+    const used = new Set();
+    const nh = headers.map(norm), nb = headers.map(bracket);
+    let cursor = 0, matched = 0, expected = 0;
+    const find = (pred) => {
+      for (let i = cursor; i < headers.length; i++) if (!used.has(i) && pred(i)) return i;
+      for (let i = 0; i < cursor; i++) if (!used.has(i) && pred(i)) return i;
+      return -1;
     };
-    if (!rows.length) return result;
-
-    const tsCol = headers.find((h) => /timestamp|طابع زمني/.test(norm(h)));
-    if (tsCol) {
-      const last = rows[rows.length - 1][tsCol];
-      result.lastResponse = last || null;
-    }
-
-    const grids = new Map();
-    for (const h of headers) {
-      if (!h || SKIP.test(norm(h))) continue;
-      const values = rows.map((r) => r[h]).filter((v) => String(v ?? "").trim() !== "");
-      if (!values.length) continue;
-
-      const scores = values.map(toScore);
-      const numeric = scores.filter((s) => typeof s === "number");
-      const isScale = numeric.length / values.length >= 0.8 && Math.max(...numeric) <= 10;
-
-      const m = h.match(/^(.*?)\s*\[(.+)\]\s*$/);
-      const question = m ? m[1].trim() : h.trim();
-      const item = m ? m[2].trim() : null;
-
-      if (isScale) {
-        const max = Math.max(...numeric) > 5 ? 10 : 5;
-        const metric = { question, item, label: item || question, scores: numeric, max };
-        metric.avg = numeric.reduce((a, b) => a + b, 0) / numeric.length;
-        metric.pct = (metric.avg / max) * 100;
-        metric.dist = [1, 2, 3, 4, 5].map((k) => numeric.filter((s) => Math.round((s / max) * 5) === k).length);
-        const cat = categorize(h);
-        if (item) {
-          const key = cat + "|" + question;
-          if (!grids.has(key)) grids.set(key, { cat, question, metrics: [] });
-          grids.get(key).metrics.push(metric);
-        } else {
-          result.categories[cat].push({ question, metrics: [metric], single: true });
-        }
-        continue;
-      }
-
-      const unique = new Set(values.map((v) => String(v).trim()));
-      const counts = {};
-      for (const v of values) {
-        // اختيارات متعددة (Checkboxes) بتيجي مفصولة بفاصلة
-        const parts = String(v).split(/,\s(?=\S)/);
-        for (const p of parts) counts[p.trim()] = (counts[p.trim()] || 0) + 1;
-      }
-      const openEnded = /اقتراح|ملاحظ|تعليق|رايك في|اكتب|suggest|comment|feedback/.test(norm(h));
-      if (!openEnded && (unique.size <= 15 || Object.keys(counts).length <= 15)) {
-        result.choices.push({ question: h, counts, total: values.length, cat: categorize(h) });
-      } else {
-        result.texts.push({ question: h, answers: values.map(String) });
-      }
-    }
-
-    for (const g of grids.values()) result.categories[g.cat].push({ question: g.question, metrics: g.metrics });
-
-    // ملخص كل تصنيف
-    result.summary = {};
-    for (const [cat, groups] of Object.entries(result.categories)) {
-      const all = groups.flatMap((g) => g.metrics);
-      result.summary[cat] = all.length ? all.reduce((a, m) => a + m.pct, 0) / all.length : null;
-    }
-    const allMetrics = Object.values(result.categories).flat().flatMap((g) => g.metrics);
-    result.overall = allMetrics.length ? allMetrics.reduce((a, m) => a + m.pct, 0) / allMetrics.length : null;
-    return result;
+    const take = (i) => { if (i >= 0) { used.add(i); cursor = i + 1; matched++; } expected++; return i; };
+    const sections = schema.sections.map((s) => ({
+      grids: s.grids.map((g) => g.rows.map((r) => { const t = norm(r.text); return take(find((i) => nb[i] === t)); })),
+      comments: s.comments.map((c) => { const t = norm(c.title); return take(find((i) => nh[i] === t)); }),
+    }));
+    return { sections, matched, expected };
   }
 
-  // يحول أي لينك Google Sheets لـ CSV
+  const emptyStats = () => ({ sum: 0, count: 0, dist: [0, 0, 0, 0, 0], crit: {}, respondents: 0 });
+  function addStats(a, b) {
+    a.sum += b.sum; a.count += b.count; a.respondents += b.respondents;
+    b.dist.forEach((v, i) => (a.dist[i] += v));
+    for (const [c, v] of Object.entries(b.crit)) {
+      a.crit[c] = a.crit[c] || { sum: 0, count: 0 };
+      a.crit[c].sum += v.sum; a.crit[c].count += v.count;
+    }
+    return a;
+  }
+  const pct = (st) => (st && st.count ? (st.sum / st.count / 5) * 100 : null);
+
+  /** يحلل فورم واحد: rows = مصفوفة صفوف (كل صف مصفوفة قيم) */
+  function analyzeForm(schema, headers, rows) {
+    const map = mapColumns(schema, headers);
+    const tsIdx = headers.findIndex((h) => /timestamp|طابع زمني|الطابع الزمني/i.test(h));
+    const out = {
+      responses: rows.length,
+      lastResponse: tsIdx >= 0 && rows.length ? rows[rows.length - 1][tsIdx] : null,
+      coverage: map.expected ? map.matched / map.expected : 0,
+      sections: [],
+    };
+    schema.sections.forEach((s, si) => {
+      const cols = map.sections[si];
+      const st = emptyStats();
+      const comments = [];
+      for (const row of rows) {
+        let answered = false;
+        s.grids.forEach((g, gi) => g.rows.forEach((r, ri) => {
+          const idx = cols.grids[gi][ri];
+          if (idx < 0) return;
+          const sc = toScore(row[idx]);
+          if (sc == null) return;
+          answered = true;
+          st.sum += sc; st.count++; st.dist[sc - 1]++;
+          const c = r.c;
+          st.crit[c] = st.crit[c] || { sum: 0, count: 0 };
+          st.crit[c].sum += sc; st.crit[c].count++;
+        }));
+        if (answered) st.respondents++;
+        cols.comments.forEach((idx) => {
+          const t = idx >= 0 ? String(row[idx] ?? "").trim() : "";
+          if (t && !/^[-_.\s0]*$|^(لا|لايوجد|لا يوجد|no|none|nothing|مفيش)$/i.test(norm(t))) comments.push(t);
+        });
+      }
+      out.sections.push({ name: s.name, title: s.title, role: s.role, course: s.course, key: s.key, stats: st, comments });
+    });
+    return out;
+  }
+
+  // يحوّل أي لينك Google Sheets للينك CSV
   function toCsvUrl(url) {
     if (!url) return "";
-    if (/output=csv|tqx=out:csv/.test(url)) return url;
+    if (/output=csv|tqx=out:csv|format=csv/.test(url)) return url;
+    if (/\/d\/e\//.test(url)) return url.replace(/\/pub(html)?.*$/, "/pub?output=csv" + ((url.match(/[?&#]gid=(\d+)/) || [])[1] ? "&gid=" + url.match(/[?&#]gid=(\d+)/)[1] : ""));
     const id = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    if (id && !/\/d\/e\//.test(url)) {
+    if (id) {
       const gid = url.match(/[#&?]gid=(\d+)/);
-      return `https://docs.google.com/spreadsheets/d/${id[1]}/gviz/tq?tqx=out:csv${gid ? "&gid=" + gid[1] : ""}`;
+      return `https://docs.google.com/spreadsheets/d/${id[1]}/gviz/tq?tqx=out:csv&headers=1${gid ? "&gid=" + gid[1] : ""}`;
     }
-    if (/\/pubhtml/.test(url)) return url.replace("/pubhtml", "/pub").replace(/\?.*$/, "") + "?output=csv";
     return url;
   }
 
-  window.SurveyAnalyzer = { analyze, toCsvUrl, norm };
+  window.SurveyAnalyzer = { analyzeForm, toCsvUrl, norm, emptyStats, addStats, pct };
 })();

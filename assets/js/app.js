@@ -1,25 +1,29 @@
 (function () {
   const CFG = window.DASHBOARD_CONFIG;
-  const { analyze, toCsvUrl } = window.SurveyAnalyzer;
+  const { analyzeForm, toCsvUrl, emptyStats, addStats, pct } = window.SurveyAnalyzer;
   const DEMO = new URLSearchParams(location.search).has("demo");
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmt = (n, d = 0) => (n == null || isNaN(n) ? "—" : Number(n).toLocaleString("ar-EG", { maximumFractionDigits: d, minimumFractionDigits: d }));
-  const color = (pct) => (pct == null ? "rgba(255,255,255,.3)" : pct >= 75 ? "var(--good)" : pct >= 55 ? "var(--mid)" : "var(--bad)");
-  const colorHex = (pct) => (pct >= 75 ? "#3ddc97" : pct >= 55 ? "#f5c542" : "#ff6b6b");
+  const fmtPct = (p) => (p == null ? "—" : fmt(p) + "%");
+  const color = (p) => (p == null ? "rgba(255,255,255,.3)" : p >= 80 ? "var(--good)" : p >= 65 ? "var(--mid)" : "var(--bad)");
+  const colorHex = (p) => (p >= 80 ? "#3ddc97" : p >= 65 ? "#f5c542" : "#ff6b6b");
   const DIST_COLORS = ["#ff6b6b", "#ff9f5a", "#f5c542", "#7fd6a8", "#3ddc97"];
-  const CAT_LABELS = { doctors: "الدكاترة", tas: "المعيدين", courses: "المواد", general: "أسئلة عامة" };
+  const DIST_LABELS = ["غير موافق تمامًا", "غير موافق", "إلى حد ما", "موافق", "موافق تمامًا"];
+  const ROLE = { doctor: "عضو هيئة تدريس", ta: "هيئة معاونة", unknown: "هيئة معاونة" };
 
-  const cache = new Map(); // programId -> {analysis, error}
+  let SCHEMA = { criteria: [], forms: {} };
+  const cache = new Map(); // formId -> {analysis, error}
   let charts = [];
+  let current = null; // آخر ملخص برنامج معروض (للمودال)
 
   /* ---------- Setup ---------- */
   const U = CFG.university;
   $("#uniNameAr").textContent = U.nameAr;
   $("#uniNameEn").textContent = U.nameEn;
   const logo = $("#logo");
-  logo.src = U.logo;
   logo.onerror = () => (logo.style.display = "none");
+  logo.src = U.logo;
   const bgImg = new Image();
   bgImg.onload = () => ($("#bg").style.backgroundImage = `url('${U.background}')`);
   bgImg.src = U.background;
@@ -30,36 +34,74 @@
 
   $("#menuBtn").onclick = () => $("#sidebar").classList.toggle("open");
   $("#refreshBtn").onclick = () => { cache.clear(); render(); };
-  if (CFG.refreshMinutes > 0) setInterval(() => { cache.clear(); render(true); }, CFG.refreshMinutes * 60000);
+  if (CFG.refreshMinutes > 0) setInterval(() => { if (!$("#modal")) { cache.clear(); render(true); } }, CFG.refreshMinutes * 60000);
 
   const findFac = (id) => CFG.faculties.find((f) => f.id === id);
-  const hasSource = (p) => DEMO || !!p.sheetUrl;
+  const formsOf = (progId) => CFG.forms.filter((f) => f.programs.includes(progId)).sort((a, b) => a.order - b.order);
+  const hasSource = (f) => DEMO || !!f.sheetUrl;
 
   /* ---------- Data ---------- */
-  async function load(program) {
-    if (cache.has(program.id)) return cache.get(program.id);
+  async function loadForm(form) {
+    if (cache.has(form.formId)) return cache.get(form.formId);
     let entry;
+    const schema = SCHEMA.forms[form.formId];
     try {
-      if (!hasSource(program)) entry = { analysis: null };
+      if (!schema) entry = { analysis: null, error: "شكل الفورم مش موجود — شغّل tools/build-schema.js" };
+      else if (!hasSource(form)) entry = { analysis: null };
       else {
-        const { rows, headers } = DEMO && !program.sheetUrl ? demoData(program) : await fetchSheet(program.sheetUrl);
-        entry = { analysis: analyze(rows, headers) };
+        const { headers, rows } = DEMO && !form.sheetUrl ? demoData(form, schema) : await fetchSheet(form.sheetUrl);
+        entry = { analysis: analyzeForm(schema, headers, rows) };
       }
     } catch (e) {
-      console.error(program.id, e);
+      console.error(form.id, e);
       entry = { analysis: null, error: e.message || String(e) };
     }
-    cache.set(program.id, entry);
+    cache.set(form.formId, entry);
     return entry;
   }
 
   async function fetchSheet(url) {
-    const res = await fetch(toCsvUrl(url) + (url.includes("?") ? "&" : "?") + "_=" + Date.now());
-    if (!res.ok) throw new Error("تعذر قراءة الشيت (" + res.status + ") — تأكد إن الشيت متشارك أو منشور");
+    const u = toCsvUrl(url);
+    const res = await fetch(u + (u.includes("?") ? "&" : "?") + "_=" + Date.now());
+    if (!res.ok) throw new Error("تعذر قراءة الشيت (" + res.status + ") — تأكد إن الشيت متشارك لأي حد معاه اللينك");
     const text = await res.text();
     if (/^\s*<!doctype html|<html/i.test(text)) throw new Error("الشيت مش متاح للعامة — اعمله Share لـ Anyone with the link");
-    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-    return { rows: parsed.data, headers: parsed.meta.fields || [] };
+    const data = Papa.parse(text, { skipEmptyLines: true }).data;
+    return { headers: data[0] || [], rows: data.slice(1) };
+  }
+
+  /** يجمع بيانات مجموعة فورمز (برنامج / كلية / جامعة) */
+  async function summarize(forms) {
+    const unique = [...new Map(forms.map((f) => [f.formId, f])).values()];
+    const entries = await Promise.all(unique.map(async (f) => ({ form: f, ...(await loadForm(f)) })));
+    const S = {
+      forms: entries, responses: 0, active: 0, lastResponse: null,
+      all: emptyStats(), doctor: emptyStats(), ta: emptyStats(),
+      staff: new Map(), courses: [], levels: [],
+    };
+    for (const e of entries) {
+      const a = e.analysis;
+      if (!a) continue;
+      S.responses += a.responses;
+      if (a.responses) S.active++;
+      const lv = { level: e.form.level, form: e.form, responses: a.responses, doctor: emptyStats(), ta: emptyStats() };
+      for (const s of a.sections) {
+        const role = s.role === "doctor" ? "doctor" : "ta";
+        addStats(S.all, s.stats); addStats(S[role], s.stats); addStats(lv[role], s.stats);
+        const k = role + ":" + s.key;
+        if (!S.staff.has(k)) S.staff.set(k, { id: k, name: s.name, title: s.title, role, rawRole: s.role, stats: emptyStats(), courses: new Set(), levels: new Set(), comments: [], parts: [] });
+        const p = S.staff.get(k);
+        addStats(p.stats, s.stats);
+        if (s.course) p.courses.add(s.course);
+        p.levels.add(e.form.level);
+        p.parts.push({ level: e.form.level, course: s.course, stats: s.stats });
+        s.comments.forEach((t) => p.comments.push({ text: t, level: e.form.level, course: s.course }));
+        if (s.course) S.courses.push({ course: s.course, name: s.name, staffId: k, level: e.form.level, stats: s.stats });
+      }
+      S.levels.push(lv);
+    }
+    S.staffList = [...S.staff.values()].filter((p) => p.stats.count).sort((a, b) => pct(b.stats) - pct(a.stats));
+    return S;
   }
 
   /* ---------- Navigation ---------- */
@@ -71,7 +113,11 @@
       html += `<button class="nav-fac ${open ? "open" : ""}" data-toggle="${f.id}">${f.icon} ${esc(f.nameAr)}<span class="chev">◀</span></button>
         <div class="nav-progs ${open ? "open" : ""}" id="progs-${f.id}">
           <button class="nav-item ${route.view === "fac" && open ? "active" : ""}" data-href="#/f/${f.id}">ملخص الكلية</button>
-          ${f.programs.map((p) => `<button class="nav-item ${route.prog === p.id ? "active" : ""}" data-href="#/p/${f.id}/${p.id}"><span class="dot ${hasSource(p) ? "on" : ""}"></span>${esc(p.nameAr)}</button>`).join("")}
+          ${f.programs.map((p) => {
+            const forms = formsOf(p.id);
+            const st = !forms.length ? "" : forms.some(hasSource) ? "on" : "wait";
+            return `<button class="nav-item ${route.prog === p.id ? "active" : ""}" data-href="#/p/${f.id}/${p.id}"><span class="dot ${st}"></span>${esc(p.nameAr)}</button>`;
+          }).join("")}
         </div>`;
     }
     nav.innerHTML = html;
@@ -80,25 +126,26 @@
   }
 
   function parseRoute() {
-    const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+    const [path, query = ""] = location.hash.replace(/^#\/?/, "").split("?");
+    const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
+    const q = new URLSearchParams(query);
     if (parts[0] === "f" && findFac(parts[1])) return { view: "fac", fac: parts[1] };
-    if (parts[0] === "p" && findFac(parts[1])) {
-      const fac = findFac(parts[1]);
-      if (fac.programs.some((p) => p.id === parts[2])) return { view: "prog", fac: parts[1], prog: parts[2], tab: parts[3] || "overview" };
-    }
+    if (parts[0] === "p" && findFac(parts[1]) && findFac(parts[1]).programs.some((p) => p.id === parts[2]))
+      return { view: "prog", fac: parts[1], prog: parts[2], tab: parts[3] || "overview", level: q.get("level") || "" };
     return { view: "home" };
   }
 
-  /* ---------- Rendering ---------- */
+  /* ---------- Rendering helpers ---------- */
   async function render(silent) {
     const route = parseRoute();
+    if (!silent && $("#modal")) $("#modal .close").click();
     buildNav(route);
     charts.forEach((c) => c.destroy());
     charts = [];
-    if (!silent) $("#content").innerHTML = `<div class="glass loader">جاري تحميل البيانات…</div>`;
+    if (!silent) $("#content").innerHTML = `<div class="glass loader"><div class="spinner"></div>جاري تحميل البيانات…</div>`;
     if (route.view === "home") await renderHome();
     else if (route.view === "fac") await renderFaculty(findFac(route.fac));
-    else await renderProgram(findFac(route.fac), route.prog, route.tab);
+    else await renderProgram(findFac(route.fac), route);
     $("#updated").textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
   }
 
@@ -108,241 +155,353 @@
     document.title = `${t.replace(/<[^>]+>/g, "")} | ${U.nameAr}`;
   }
 
-  function kpi(label, value, pct, suffix = "") {
-    return `<div class="kpi glass"><div class="label">${label}</div><div class="value">${value}${suffix}</div>
-      ${pct !== undefined ? `<div class="bar"><span style="width:${pct ?? 0}%;background:${color(pct)}"></span></div>` : ""}</div>`;
-  }
+  const kpi = (label, value, p, hint) => `<div class="kpi glass"><div class="label">${label}</div><div class="value" ${p !== undefined ? `style="color:${color(p)}"` : ""}>${value}</div>
+      ${p !== undefined ? `<div class="bar"><span style="width:${p ?? 0}%;background:${color(p)}"></span></div>` : ""}${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
 
-  function aggregate(analyses) {
-    const valid = analyses.filter(Boolean);
-    const avgOf = (key) => {
-      const vals = valid.map((a) => (key ? a.summary[key] : a.overall)).filter((v) => v != null);
-      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-    };
-    return {
-      responses: valid.reduce((a, b) => a + b.responses, 0),
-      overall: avgOf(), doctors: avgOf("doctors"), tas: avgOf("tas"), courses: avgOf("courses"),
-      active: valid.filter((a) => a.responses > 0).length,
-    };
-  }
-
-  function kpiRow(s) {
+  function kpiRow(S) {
+    const docs = S.staffList.filter((p) => p.role === "doctor").length, tas = S.staffList.length - docs;
     return `<div class="kpis">
-      ${kpi("عدد الردود", fmt(s.responses))}
-      ${kpi("الرضا العام", fmt(s.overall), s.overall, "%")}
-      ${kpi("تقييم الدكاترة", fmt(s.doctors), s.doctors, "%")}
-      ${kpi("تقييم المعيدين", fmt(s.tas), s.tas, "%")}
-      ${kpi("تقييم المواد", fmt(s.courses), s.courses, "%")}
+      ${kpi("عدد الطلاب المشاركين", fmt(S.responses))}
+      ${kpi("الرضا العام", fmtPct(pct(S.all)), pct(S.all))}
+      ${kpi("تقييم أعضاء هيئة التدريس", fmtPct(pct(S.doctor)), pct(S.doctor), `${fmt(docs)} عضو`)}
+      ${kpi("تقييم الهيئة المعاونة", fmtPct(pct(S.ta)), pct(S.ta), `${fmt(tas)} عضو`)}
     </div>`;
   }
 
-  function emptyState(msg, icon = "📭") {
-    return `<div class="glass empty"><div class="big">${icon}</div><h3>${msg}</h3>
-      <p>أول ما لينك شيت الردود يتضاف في <code>assets/js/config.js</code> الإحصائيات هتظهر هنا تلقائيًا.</p></div>`;
+  const scoreBar = (p) => `<div class="score-bar"><span class="num" style="color:${color(p)}">${fmtPct(p)}</span><div class="track"><div class="fill" style="width:${p ?? 0}%;background:${color(p)}"></div></div></div>`;
+  const distBar = (dist) => { const t = dist.reduce((a, b) => a + b, 0) || 1; return `<div class="stack" title="${DIST_LABELS.map((l, i) => `${l}: ${Math.round((dist[i] / t) * 100)}%`).join(" • ")}">${dist.map((v, i) => `<span style="width:${(v / t) * 100}%;background:${DIST_COLORS[i]}"></span>`).join("")}</div>`; };
+  const legend = () => `<div class="legend">${DIST_LABELS.map((l, i) => `<span><i style="background:${DIST_COLORS[i]}"></i>${l}</span>`).join("")}</div>`;
+
+  function emptyState(title, msg, icon = "📭") {
+    return `<div class="glass empty"><div class="big">${icon}</div><h3>${title}</h3>${msg ? `<p>${msg}</p>` : ""}</div>`;
   }
 
+  /* ---------- Home ---------- */
   async function renderHome() {
-    setTitle("نظرة عامة على الجامعة", CFG.university.surveyTitle);
-    const facData = await Promise.all(CFG.faculties.map(async (f) => {
-      const entries = await Promise.all(f.programs.map(load));
-      return { f, s: aggregate(entries.map((e) => e.analysis)) };
-    }));
-    const total = aggregate(facData.flatMap((d) => [d.s]).map((s) => ({ ...s, summary: s })));
-    total.responses = facData.reduce((a, d) => a + d.s.responses, 0);
+    setTitle("نظرة عامة على الجامعة", U.surveyTitle);
+    const all = await summarize(CFG.forms);
+    const facs = await Promise.all(CFG.faculties.map(async (f) => ({ f, S: await summarize(f.programs.flatMap((p) => formsOf(p.id))) })));
+    const withData = facs.filter((x) => x.S.all.count);
 
     $("#content").innerHTML = `<div class="grid">
-      ${kpiRow(total)}
-      <div class="fac-cards">${facData.map(({ f, s }) => `
-        <div class="fac-card glass" data-href="#/f/${f.id}">
+      ${kpiRow(all)}
+      <div class="fac-cards">${facs.map(({ f, S }) => {
+        const nForms = new Set(f.programs.flatMap((p) => formsOf(p.id)).map((x) => x.formId)).size;
+        return `<div class="fac-card glass" data-href="#/f/${f.id}">
           <div class="icon">${f.icon}</div><h3>${esc(f.nameAr)}</h3>
           <div class="progs">${f.programs.map((p) => esc(p.nameAr)).join(" • ")}</div>
-          <div class="stats"><div><b>${fmt(s.responses)}</b><small>رد</small></div>
-            <div><b style="color:${color(s.overall)}">${fmt(s.overall)}${s.overall != null ? "%" : ""}</b><small>الرضا العام</small></div></div>
-        </div>`).join("")}</div>
-      <div class="card glass"><h3>مقارنة الكليات</h3><div class="sub">متوسط التقييم (%) لكل محور</div>
-        <div class="chart-box" style="height:340px"><canvas id="cmp"></canvas></div></div>
+          ${S.all.count ? `<div class="stats"><div><b>${fmt(S.responses)}</b><small>طالب</small></div>
+            <div><b style="color:${color(pct(S.all))}">${fmtPct(pct(S.all))}</b><small>الرضا العام</small></div>
+            <div><b>${fmt(S.staffList.length)}</b><small>عضو مُقيَّم</small></div></div>`
+          : `<div class="stats"><small>${nForms ? `⏳ ${fmt(nForms)} استبيان في انتظار الردود` : "لا توجد استبيانات بعد"}</small></div>`}
+        </div>`; }).join("")}</div>
+      ${withData.length ? `<div class="grid grid-2">
+        <div class="card glass"><h3>مقارنة الكليات</h3><div class="sub">متوسط التقييم (%)</div><div class="chart-box" style="height:320px"><canvas id="cmp"></canvas></div></div>
+        <div class="card glass"><h3>بنود التقييم على مستوى الجامعة</h3><div class="sub">أقوى وأضعف البنود</div>${criteriaMini(all)}</div>
+      </div>` : ""}
     </div>`;
-    document.querySelectorAll(".fac-card").forEach((c) => (c.onclick = () => (location.hash = c.dataset.href)));
-    compareChart("cmp", facData.map((d) => d.f.nameAr), facData.map((d) => d.s));
+    bindHrefs();
+    if (withData.length) compareChart("cmp", withData.map((x) => x.f.nameAr), withData.map((x) => x.S));
   }
 
+  /* ---------- Faculty ---------- */
   async function renderFaculty(f) {
     setTitle(`${f.icon} ${esc(f.nameAr)}`, f.nameEn);
-    const entries = await Promise.all(f.programs.map(load));
-    const s = aggregate(entries.map((e) => e.analysis));
-    const rows = f.programs.map((p, i) => ({ p, a: entries[i].analysis, err: entries[i].error }));
+    const S = await summarize(f.programs.flatMap((p) => formsOf(p.id)));
+    const progs = await Promise.all(f.programs.map(async (p) => ({ p, forms: formsOf(p.id), S: await summarize(formsOf(p.id)) })));
+    const withData = progs.filter((x) => x.S.all.count);
     $("#content").innerHTML = `<div class="grid">
-      ${kpiRow(s)}
-      <div class="fac-cards">${rows.map(({ p, a, err }) => `
+      ${kpiRow(S)}
+      <div class="fac-cards">${progs.map(({ p, forms, S: ps }) => `
         <div class="fac-card glass" data-href="#/p/${f.id}/${p.id}">
-          <h3>${esc(p.nameAr)}</h3><div class="progs">${esc(p.nameEn)}</div>
-          ${a ? `<div class="stats"><div><b>${fmt(a.responses)}</b><small>رد</small></div>
-            <div><b style="color:${color(a.overall)}">${fmt(a.overall)}${a.overall != null ? "%" : ""}</b><small>الرضا العام</small></div></div>`
-          : `<p class="progs">${err ? "⚠️ " + esc(err) : "⏳ في انتظار بيانات الفورم"}</p>`}
+          <h3>${esc(p.nameAr)}</h3><div class="progs">${esc(p.nameEn)}${forms.length ? " • " + forms.map((x) => esc(x.level)).join("، ") : ""}</div>
+          ${ps.all.count ? `<div class="stats"><div><b>${fmt(ps.responses)}</b><small>طالب</small></div>
+            <div><b style="color:${color(pct(ps.all))}">${fmtPct(pct(ps.all))}</b><small>الرضا العام</small></div>
+            <div><b>${fmt(ps.staffList.length)}</b><small>عضو مُقيَّم</small></div></div>`
+          : `<div class="stats"><small>${forms.length ? "⏳ في انتظار ردود الطلاب" : "لا يوجد استبيان لهذا البرنامج بعد"}</small></div>`}
         </div>`).join("")}</div>
-      ${s.active ? `<div class="card glass"><h3>مقارنة البرامج</h3><div class="sub">متوسط التقييم (%) لكل محور</div>
-        <div class="chart-box" style="height:320px"><canvas id="cmp"></canvas></div></div>` : ""}
+      ${withData.length ? `<div class="grid grid-2">
+        <div class="card glass"><h3>مقارنة البرامج</h3><div class="sub">متوسط التقييم (%)</div><div class="chart-box" style="height:300px"><canvas id="cmp"></canvas></div></div>
+        <div class="card glass"><h3>الأعلى تقييمًا في الكلية</h3><div class="sub">أفضل ٥ أعضاء</div>${staffTable(S.staffList.slice(0, 5), { compact: true })}</div>
+      </div>` : ""}
     </div>`;
-    document.querySelectorAll(".fac-card").forEach((c) => (c.onclick = () => (location.hash = c.dataset.href)));
-    if (s.active) compareChart("cmp", rows.map((r) => r.p.nameAr), rows.map((r) => r.a ? { ...r.a.summary, overall: r.a.overall } : {}));
+    bindHrefs();
+    current = S;
+    if (withData.length) compareChart("cmp", withData.map((x) => x.p.nameAr), withData.map((x) => x.S));
   }
 
-  async function renderProgram(f, progId, tab) {
-    const p = f.programs.find((x) => x.id === progId);
+  /* ---------- Program ---------- */
+  async function renderProgram(f, route) {
+    const p = f.programs.find((x) => x.id === route.prog);
     setTitle(esc(p.nameAr), `${f.nameAr} • ${p.nameEn}`);
-    const { analysis: a, error } = await load(p);
-    if (error) return ($("#content").innerHTML = emptyState("مش قادر أقرا البيانات: " + esc(error), "⚠️"));
-    if (!a) return ($("#content").innerHTML = emptyState("لسه مفيش فورم مربوط بالبرنامج ده", "⏳"));
-    if (!a.responses) return ($("#content").innerHTML = emptyState("الفورم مربوط بس لسه مفيش ردود", "📭"));
+    const allForms = formsOf(p.id);
+    if (!allForms.length) return ($("#content").innerHTML = emptyState("لا يوجد استبيان لهذا البرنامج بعد", "أول ما توصل لينكات الفورم هتتضاف هنا.", "🗂️"));
+    if (!allForms.some(hasSource)) return ($("#content").innerHTML = levelsWaiting(allForms));
 
-    const tabs = [["overview", "نظرة عامة"], ["doctors", "الدكاترة"], ["tas", "المعيدين"], ["courses", "المواد"], ["general", "أسئلة عامة"], ["comments", "آراء الطلاب"]];
-    const counts = { doctors: a.categories.doctors.length, tas: a.categories.tas.length, courses: a.categories.courses.length, general: a.categories.general.length + a.choices.length, comments: a.texts.reduce((n, t) => n + t.answers.length, 0) };
+    const forms = route.level ? allForms.filter((x) => x.id === route.level) : allForms;
+    const S = await summarize(forms);
+    current = S;
     const base = `#/p/${f.id}/${p.id}`;
+    const q = route.level ? `?level=${route.level}` : "";
+    const errors = S.forms.filter((e) => e.error);
 
-    let body = "";
-    if (tab === "overview") body = overviewTab(a);
-    else if (tab === "comments") body = commentsTab(a);
-    else if (tab === "general") body = categoryTab(a, "general") + choicesBlock(a.choices);
-    else body = categoryTab(a, tab);
+    const hasCourses = S.courses.length > 0;
+    const commentsCount = S.staffList.reduce((n, x) => n + x.comments.length, 0);
+    const hasTas = !S.all.count || S.staffList.some((x) => x.role === "ta");
+    const tabs = [["overview", "نظرة عامة"], ["doctors", "أعضاء هيئة التدريس"], ...(hasTas ? [["tas", "الهيئة المعاونة"]] : []), ...(hasCourses ? [["courses", "المقررات"]] : []), ["criteria", "بنود التقييم"], ["comments", `آراء الطلاب${commentsCount ? `<span class="count">${fmt(commentsCount)}</span>` : ""}`]];
+    const tab = tabs.some(([k]) => k === route.tab) ? route.tab : "overview";
+
+    let body;
+    if (!S.all.count) body = emptyState("لسه مفيش ردود", errors.length ? errors.map((e) => `⚠️ ${esc(e.form.level)}: ${esc(e.error)}`).join("<br>") : "أول ما الطلاب يبدأوا يجاوبوا، الإحصائيات هتظهر هنا.", errors.length ? "⚠️" : "📭");
+    else if (tab === "overview") body = overviewTab(S);
+    else if (tab === "doctors") body = staffTab(S, "doctor");
+    else if (tab === "tas") body = staffTab(S, "ta");
+    else if (tab === "courses") body = coursesTab(S);
+    else if (tab === "criteria") body = criteriaTab(S);
+    else body = commentsTab(S);
 
     $("#content").innerHTML = `<div class="grid">
-      ${kpiRow({ responses: a.responses, overall: a.overall, ...a.summary })}
-      <div class="tabs glass">${tabs.map(([k, l]) => `<button class="tab ${tab === k ? "active" : ""}" data-href="${base}/${k}">${l}${counts[k] ? `<span class="count">${fmt(counts[k])}</span>` : ""}</button>`).join("")}</div>
+      <div class="levels glass">
+        <span class="lbl">المستوى:</span>
+        <button class="chip ${!route.level ? "active" : ""}" data-href="${base}/${tab}">كل المستويات</button>
+        ${allForms.map((x) => `<button class="chip ${route.level === x.id ? "active" : ""}" data-href="${base}/${tab}?level=${x.id}"><span class="dot ${hasSource(x) ? "on" : "wait"}"></span>${esc(x.level)}${x.programs.length > 1 ? ` <small>(مشترك)</small>` : ""}</button>`).join("")}
+      </div>
+      ${kpiRow(S)}
+      ${errors.length && S.all.count ? `<div class="glass warn">⚠️ ${errors.map((e) => `${esc(e.form.level)}: ${esc(e.error)}`).join(" • ")}</div>` : ""}
+      <div class="tabs glass">${tabs.map(([k, l]) => `<button class="tab ${tab === k ? "active" : ""}" data-href="${base}/${k}${q}">${l}</button>`).join("")}</div>
       ${body}
     </div>`;
-    document.querySelectorAll(".tab").forEach((b) => (b.onclick = () => (location.hash = b.dataset.href)));
-    if (tab === "overview") drawOverview(a);
-    else if (tab === "general") { drawCategory(a, "general"); drawChoices(a.choices); }
-    else if (tab !== "comments") drawCategory(a, tab);
+    bindHrefs();
+    bindStaff();
+    if (!S.all.count) return;
+    if (tab === "overview") drawOverview(S);
+    if (tab === "criteria") drawCriteria("critChart", S.all);
+    if (tab === "comments") bindCommentSearch();
+    if (tab === "doctors" || tab === "tas") bindStaffSearch();
   }
 
-  function overviewTab(a) {
-    const cats = ["doctors", "tas", "courses", "general"].filter((c) => a.categories[c].length);
+  function levelsWaiting(forms) {
+    return `<div class="grid">${emptyState("في انتظار ردود الطلاب", "الاستبيانات جاهزة ومربوطة. أول ما شيت الردود يتضاف الإحصائيات هتظهر هنا.", "⏳")}
+      <div class="card glass"><h3>الاستبيانات</h3><div class="sub">${fmt(forms.length)} استبيان</div>
+      <table class="mtable"><thead><tr><th>المستوى</th><th>عدد الأعضاء المُقيَّمين</th><th>الفورم</th></tr></thead><tbody>
+      ${forms.map((x) => { const sc = SCHEMA.forms[x.formId]; return `<tr><td>${esc(x.level)}</td><td class="num">${sc ? fmt(sc.sections.length) : "—"}</td>
+        <td><a class="link" target="_blank" rel="noopener" href="https://docs.google.com/forms/d/${x.formId}/viewform">فتح الفورم ↗</a></td></tr>`; }).join("")}
+      </tbody></table></div></div>`;
+  }
+
+  function overviewTab(S) {
+    const top = S.staffList.slice(0, 5), bottom = S.staffList.length > 5 ? S.staffList.slice(-5).reverse() : [];
     return `<div class="grid grid-2">
-      <div class="card glass"><h3>التقييم حسب المحور</h3><div class="sub">متوسط الرضا (%)</div><div class="chart-box" style="height:280px"><canvas id="ovCats"></canvas></div></div>
-      <div class="card glass"><h3>توزيع كل التقييمات</h3><div class="sub">من ضعيف إلى ممتاز</div><div class="chart-box" style="height:280px"><canvas id="ovDist"></canvas></div></div>
+      <div class="card glass"><h3>التقييم حسب المستوى</h3><div class="sub">أعضاء هيئة التدريس مقابل الهيئة المعاونة (%)</div><div class="chart-box" style="height:290px"><canvas id="ovLevels"></canvas></div></div>
+      <div class="card glass"><h3>توزيع كل الإجابات</h3><div class="sub">${fmt(S.all.count)} إجابة</div><div class="chart-box" style="height:290px"><canvas id="ovDist"></canvas></div></div>
     </div>
-    <div class="grid grid-2">${cats.map((c) => {
-      const ms = a.categories[c].flatMap((g) => g.metrics).sort((x, y) => y.pct - x.pct);
-      return `<div class="card glass"><h3>${CAT_LABELS[c]}: الأعلى والأقل تقييمًا</h3><div class="sub">${fmt(ms.length)} عنصر</div>
-        ${metricTable([...ms.slice(0, 3), ...(ms.length > 6 ? ms.slice(-3) : ms.slice(3))])}</div>`;
-    }).join("")}</div>`;
+    <div class="grid grid-2">
+      <div class="card glass"><h3>🏆 الأعلى تقييمًا</h3><div class="sub">أفضل ٥ أعضاء</div>${staffTable(top, { compact: true })}</div>
+      ${bottom.length ? `<div class="card glass"><h3>📉 يحتاج متابعة</h3><div class="sub">أقل ٥ أعضاء تقييمًا</div>${staffTable(bottom, { compact: true })}</div>`
+        : `<div class="card glass"><h3>بنود التقييم</h3><div class="sub">أقوى وأضعف البنود</div>${criteriaMini(S)}</div>`}
+    </div>
+    ${bottom.length ? `<div class="card glass"><h3>بنود التقييم</h3><div class="sub">أقوى وأضعف البنود</div>${criteriaMini(S)}</div>` : ""}`;
   }
 
-  function drawOverview(a) {
-    const cats = ["doctors", "tas", "courses", "general"].filter((c) => a.summary[c] != null);
-    charts.push(new Chart($("#ovCats"), {
+  function drawOverview(S) {
+    const lv = S.levels.filter((l) => l.doctor.count || l.ta.count);
+    charts.push(new Chart($("#ovLevels"), {
       type: "bar",
-      data: { labels: cats.map((c) => CAT_LABELS[c]), datasets: [{ data: cats.map((c) => +a.summary[c].toFixed(1)), backgroundColor: cats.map((c) => colorHex(a.summary[c])), borderRadius: 10, maxBarThickness: 60 }] },
-      options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, ticks: { callback: (v) => v + "%" } }, x: { grid: { display: false } } } },
+      data: { labels: lv.map((l) => l.level), datasets: [
+        { label: "هيئة التدريس", data: lv.map((l) => round(pct(l.doctor))), backgroundColor: "#5ab0ff", borderRadius: 8, maxBarThickness: 34 },
+        { label: "الهيئة المعاونة", data: lv.map((l) => round(pct(l.ta))), backgroundColor: "#b98cff", borderRadius: 8, maxBarThickness: 34 },
+      ] },
+      options: { maintainAspectRatio: false, plugins: { legend: { position: "top", rtl: true }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.raw}%` } } }, scales: { y: { min: 0, max: 100, ticks: { callback: (v) => v + "%" } }, x: { grid: { display: false } } } },
     }));
-    const dist = [0, 0, 0, 0, 0];
-    Object.values(a.categories).flat().flatMap((g) => g.metrics).forEach((m) => m.dist.forEach((v, i) => (dist[i] += v)));
     charts.push(new Chart($("#ovDist"), {
       type: "doughnut",
-      data: { labels: ["ضعيف", "مقبول", "جيد", "جيد جدًا", "ممتاز"], datasets: [{ data: dist, backgroundColor: DIST_COLORS, borderColor: "rgba(255,255,255,.25)", borderWidth: 2 }] },
+      data: { labels: DIST_LABELS, datasets: [{ data: [...S.all.dist], backgroundColor: DIST_COLORS, borderColor: "rgba(255,255,255,.25)", borderWidth: 2 }] },
       options: { maintainAspectRatio: false, cutout: "62%", plugins: { legend: { position: "left", rtl: true } } },
     }));
   }
 
-  function metricTable(ms) {
-    return `<table class="mtable"><thead><tr><th>البند</th><th>التقييم</th><th>التوزيع</th><th>ردود</th></tr></thead><tbody>
-      ${ms.map((m) => { const tot = m.dist.reduce((a, b) => a + b, 0) || 1; return `<tr>
-        <td>${esc(m.label)}</td>
-        <td><div class="score-bar"><span class="num" style="color:${color(m.pct)}">${fmt(m.pct)}%</span><div class="track"><div class="fill" style="width:${m.pct}%;background:${color(m.pct)}"></div></div></div></td>
-        <td><div class="stack" title="ضعيف ← ممتاز">${m.dist.map((v, i) => `<span style="width:${(v / tot) * 100}%;background:${DIST_COLORS[i]}"></span>`).join("")}</div></td>
-        <td class="num">${fmt(m.scores.length)}</td></tr>`; }).join("")}
+  function staffTable(list, { compact } = {}) {
+    if (!list.length) return `<p class="muted">لا يوجد.</p>`;
+    return `<table class="mtable"><thead><tr><th>#</th><th>الاسم</th>${compact ? "" : "<th>المقررات / المستويات</th>"}<th>التقييم</th>${compact ? "" : "<th>توزيع الإجابات</th>"}<th>طلاب</th></tr></thead><tbody>
+      ${list.map((x, i) => `<tr class="clickable" data-staff="${esc(x.id)}">
+        <td class="rank">${fmt(i + 1)}</td>
+        <td><div class="pname">${esc(x.name)}</div><div class="prole">${ROLE[x.rawRole]}${compact ? "" : ""}</div></td>
+        ${compact ? "" : `<td class="muted small">${esc([...x.courses].join("، ") || [...x.levels].join("، "))}</td>`}
+        <td>${scoreBar(pct(x.stats))}</td>
+        ${compact ? "" : `<td>${distBar(x.stats.dist)}</td>`}
+        <td class="num">${fmt(Math.max(...x.parts.map((pt) => pt.stats.respondents)))}</td></tr>`).join("")}
     </tbody></table>`;
   }
 
-  function categoryTab(a, cat) {
-    const groups = a.categories[cat];
-    if (!groups.length) return cat === "general" ? "" : `<div class="glass empty"><div class="big">🔍</div><h3>مفيش أسئلة خاصة بـ${CAT_LABELS[cat]} في الفورم ده</h3></div>`;
-    return `<div class="grid">${groups.map((g, i) => `
-      <div class="card glass"><h3>${esc(g.question)}</h3><div class="sub">${g.single ? "سؤال تقييم" : fmt(g.metrics.length) + " بند"} • متوسط ${fmt(g.metrics.reduce((s, m) => s + m.pct, 0) / g.metrics.length)}%</div>
-        ${g.single ? "" : `<div class="chart-box" style="height:${Math.max(160, g.metrics.length * 38)}px"><canvas id="c-${cat}-${i}"></canvas></div>`}
-        ${metricTable(g.metrics)}
-      </div>`).join("")}</div>`;
+  function staffTab(S, role) {
+    const list = S.staffList.filter((x) => x.role === role);
+    if (!list.length) return emptyState(role === "doctor" ? "مفيش أعضاء هيئة تدريس في الاستبيان ده" : "مفيش هيئة معاونة في الاستبيان ده", "", "🔍");
+    return `<div class="card glass">
+      <div class="card-head"><div><h3>${role === "doctor" ? "أعضاء هيئة التدريس" : "الهيئة المعاونة"}</h3><div class="sub">${fmt(list.length)} عضو • متوسط ${fmtPct(pct(S[role]))} • اضغط على أي اسم للتفاصيل</div></div>
+        <input class="search" id="staffSearch" placeholder="🔎 بحث بالاسم أو المقرر…" /></div>
+      ${legend()}
+      <div id="staffTable">${staffTable(list)}</div></div>`;
   }
 
-  function drawCategory(a, cat) {
-    a.categories[cat].forEach((g, i) => {
-      if (g.single) return;
-      const el = document.getElementById(`c-${cat}-${i}`);
-      if (!el) return;
-      charts.push(new Chart(el, {
-        type: "bar",
-        data: { labels: g.metrics.map((m) => m.label), datasets: [{ data: g.metrics.map((m) => +m.pct.toFixed(1)), backgroundColor: g.metrics.map((m) => colorHex(m.pct)), borderRadius: 8, maxBarThickness: 26 }] },
-        options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => c.raw + "%" } } }, scales: { x: { min: 0, max: 100, ticks: { callback: (v) => v + "%" } }, y: { position: "right", grid: { display: false } } } },
-      }));
-    });
+  function bindStaffSearch() {
+    const input = $("#staffSearch");
+    if (!input) return;
+    input.oninput = () => {
+      const t = input.value.trim();
+      document.querySelectorAll("#staffTable tbody tr").forEach((tr) => (tr.style.display = !t || tr.textContent.includes(t) ? "" : "none"));
+    };
   }
 
-  function choicesBlock(choices) {
-    if (!choices.length) return "";
-    return `<div class="grid grid-2">${choices.map((c, i) => `<div class="card glass"><h3>${esc(c.question)}</h3><div class="sub">${fmt(c.total)} رد</div>
-      <div class="chart-box" style="height:260px"><canvas id="ch-${i}"></canvas></div></div>`).join("")}</div>`;
+  function coursesTab(S) {
+    const list = [...S.courses].sort((a, b) => pct(b.stats) - pct(a.stats));
+    return `<div class="card glass"><h3>المقررات</h3><div class="sub">${fmt(list.length)} مقرر • مرتبة حسب التقييم</div>${legend()}
+      <table class="mtable"><thead><tr><th>#</th><th>المقرر</th><th>عضو هيئة التدريس</th><th>المستوى</th><th>التقييم</th><th>توزيع الإجابات</th><th>طلاب</th></tr></thead><tbody>
+      ${list.map((c, i) => `<tr class="clickable" data-staff="${esc(c.staffId)}"><td class="rank">${fmt(i + 1)}</td><td><b>${esc(c.course)}</b></td><td>${esc(c.name)}</td><td class="muted small">${esc(c.level)}</td>
+        <td>${scoreBar(pct(c.stats))}</td><td>${distBar(c.stats.dist)}</td><td class="num">${fmt(c.stats.respondents)}</td></tr>`).join("")}
+      </tbody></table></div>`;
   }
 
-  const PALETTE = ["#5ab0ff", "#3ddc97", "#f5c542", "#ff6b6b", "#b98cff", "#ff9f5a", "#4fd1c5", "#f78fb3", "#a3e635", "#94a3b8"];
-  function drawChoices(choices) {
-    choices.forEach((c, i) => {
-      const entries = Object.entries(c.counts).sort((a, b) => b[1] - a[1]);
-      const pie = entries.length <= 5;
-      charts.push(new Chart(document.getElementById("ch-" + i), {
-        type: pie ? "doughnut" : "bar",
-        data: { labels: entries.map((e) => e[0]), datasets: [{ data: entries.map((e) => e[1]), backgroundColor: entries.map((_, k) => PALETTE[k % PALETTE.length]), borderRadius: pie ? 0 : 8, borderColor: "rgba(255,255,255,.25)", borderWidth: pie ? 2 : 0 }] },
-        options: pie ? { maintainAspectRatio: false, cutout: "58%", plugins: { legend: { position: "left", rtl: true } } }
-          : { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { position: "right", grid: { display: false } } } },
-      }));
-    });
+  function critList(st) {
+    return SCHEMA.criteria.map((label, i) => ({ label, i, p: st.crit[i] ? (st.crit[i].sum / st.crit[i].count / 5) * 100 : null, n: st.crit[i]?.count || 0 })).filter((c) => c.p != null);
   }
 
-  function commentsTab(a) {
-    if (!a.texts.length) return `<div class="glass empty"><div class="big">💬</div><h3>مفيش أسئلة مقالية في الفورم ده</h3></div>`;
-    return `<div class="grid grid-2">${a.texts.map((t) => `<div class="card glass"><h3>${esc(t.question)}</h3><div class="sub">${fmt(t.answers.length)} رد</div>
-      <div class="comments">${t.answers.map((x) => `<div class="comment">${esc(x)}</div>`).join("")}</div></div>`).join("")}</div>`;
+  function criteriaMini(S) {
+    const list = critList(S.all).sort((a, b) => b.p - a.p);
+    if (!list.length) return "";
+    const pick = list.length > 6 ? [...list.slice(0, 3), null, ...list.slice(-3)] : list;
+    return `<table class="mtable"><tbody>${pick.map((c) => c ? `<tr><td>${esc(c.label)}</td><td style="width:45%">${scoreBar(c.p)}</td></tr>` : `<tr><td colspan="2" class="sep">⋯</td></tr>`).join("")}</tbody></table>`;
   }
 
-  function compareChart(id, labels, stats) {
-    const series = [["overall", "الرضا العام", "#5ab0ff"], ["doctors", "الدكاترة", "#3ddc97"], ["tas", "المعيدين", "#f5c542"], ["courses", "المواد", "#b98cff"]];
+  function criteriaTab(S) {
+    const list = critList(S.all);
+    return `<div class="card glass"><h3>متوسط كل بند من بنود التقييم</h3><div class="sub">على مستوى كل أعضاء هيئة التدريس والهيئة المعاونة المختارين</div>
+      <div class="chart-box" style="height:${Math.max(300, list.length * 34)}px"><canvas id="critChart"></canvas></div></div>`;
+  }
+
+  function drawCriteria(id, st) {
+    const list = critList(st);
     charts.push(new Chart(document.getElementById(id), {
       type: "bar",
-      data: { labels, datasets: series.map(([k, l, c]) => ({ label: l, data: stats.map((s) => (s[k] == null ? null : +s[k].toFixed(1))), backgroundColor: c, borderRadius: 6, maxBarThickness: 28 })) },
-      options: { maintainAspectRatio: false, plugins: { legend: { position: "top", rtl: true } }, scales: { y: { min: 0, max: 100, ticks: { callback: (v) => v + "%" } }, x: { grid: { display: false } } } },
+      data: { labels: list.map((c) => c.label), datasets: [{ data: list.map((c) => round(c.p)), backgroundColor: list.map((c) => colorHex(c.p)), borderRadius: 8, maxBarThickness: 22 }] },
+      options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => c.raw + "%" } } }, scales: { x: { min: 0, max: 100, ticks: { callback: (v) => v + "%" } }, y: { position: "right", grid: { display: false } } } },
     }));
   }
 
-  /* ---------- Demo data (?demo=1) ---------- */
-  function demoData(program) {
-    let seed = [...program.id].reduce((a, c) => a + c.charCodeAt(0), 0);
-    const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-    const scale = ["ضعيف", "مقبول", "جيد", "جيد جدا", "ممتاز"];
-    const pick = (bias) => scale[Math.min(4, Math.max(0, Math.round(bias + (rnd() - 0.5) * 2.4)))];
-    const docs = ["د. أحمد علي", "د. منى حسن", "د. محمود سالم", "د. سارة إبراهيم"];
-    const tas = ["م. يوسف خالد", "م. نورهان سمير", "م. عمر طارق"];
-    const courses = ["المادة 101", "المادة 102", "المادة 103", "المادة 104"];
-    const headers = ["Timestamp", "الفرقة الدراسية",
-      ...docs.map((d) => `تقييم أداء الدكتور [${d}]`),
-      ...tas.map((t) => `تقييم أداء المعيد [${t}]`),
-      ...courses.map((c) => `مدى وضوح محتوى المادة [${c}]`),
-      "مدى رضاك عن الخدمات التعليمية بشكل عام", "اقتراحات لتحسين العملية التعليمية"];
-    const biases = headers.map(() => 1.8 + rnd() * 2);
-    const n = 40 + Math.floor(rnd() * 120);
-    const comments = ["زيادة الساعات العملية", "المحاضرات ممتازة", "محتاجين معامل أكتر", "تنظيم الجدول أفضل", "شكرًا للدكاترة على المجهود"];
-    const rows = Array.from({ length: n }, () => {
-      const r = {};
-      headers.forEach((h, i) => {
-        if (i === 0) r[h] = "2026/11/10";
-        else if (i === 1) r[h] = ["الأولى", "الثانية", "الثالثة", "الرابعة"][Math.floor(rnd() * 4)];
-        else if (i === headers.length - 1) r[h] = rnd() > 0.6 ? comments[Math.floor(rnd() * comments.length)] : "";
-        else r[h] = pick(biases[i]);
-      });
-      return r;
-    });
-    return { rows, headers };
+  function commentsTab(S) {
+    const people = S.staffList.filter((x) => x.comments.length).sort((a, b) => b.comments.length - a.comments.length);
+    if (!people.length) return emptyState("مفيش ملاحظات مكتوبة من الطلاب", "", "💬");
+    return `<div class="card glass"><div class="card-head"><div><h3>ملاحظات ومقترحات الطلاب</h3><div class="sub">${fmt(people.reduce((n, x) => n + x.comments.length, 0))} ملاحظة</div></div>
+      <input class="search" id="commentSearch" placeholder="🔎 بحث في الملاحظات أو الأسماء…" /></div></div>
+      <div class="grid grid-2" id="commentGrid">${people.map((x) => `<div class="card glass comment-card">
+        <div class="card-head"><div><h3 class="clickable" data-staff="${esc(x.id)}">${esc(x.name)}</h3><div class="sub">${ROLE[x.rawRole]} • ${fmt(x.comments.length)} ملاحظة • تقييم ${fmtPct(pct(x.stats))}</div></div></div>
+        <div class="comments">${x.comments.map((c) => `<div class="comment">${esc(c.text)}<small>${esc(c.course || c.level)}</small></div>`).join("")}</div></div>`).join("")}</div>`;
   }
 
-  window.addEventListener("hashchange", () => render());
-  render();
+  function bindCommentSearch() {
+    const input = $("#commentSearch");
+    input.oninput = () => {
+      const t = input.value.trim();
+      document.querySelectorAll(".comment-card").forEach((card) => {
+        const nameHit = card.querySelector("h3").textContent.includes(t);
+        let any = false;
+        card.querySelectorAll(".comment").forEach((c) => { const hit = !t || nameHit || c.textContent.includes(t); c.style.display = hit ? "" : "none"; any ||= hit; });
+        card.style.display = any ? "" : "none";
+      });
+    };
+  }
+
+  /* ---------- Staff modal ---------- */
+  function bindStaff() {
+    document.querySelectorAll("[data-staff]").forEach((el) => (el.onclick = () => openStaff(el.dataset.staff)));
+  }
+
+  function openStaff(id) {
+    const x = current && current.staff.get(id);
+    if (!x) return;
+    const p = pct(x.stats);
+    const list = critList(x.stats);
+    const best = [...list].sort((a, b) => b.p - a.p);
+    const div = document.createElement("div");
+    div.id = "modal";
+    div.className = "modal-wrap";
+    div.innerHTML = `<div class="modal glass" role="dialog" aria-modal="true">
+      <button class="close" aria-label="إغلاق">✕</button>
+      <div class="modal-head"><div class="avatar">${esc(x.name.trim()[0] || "؟")}</div>
+        <div><h2>${esc(x.title)}</h2><div class="sub">${ROLE[x.rawRole]} • ${esc([...x.levels].join("، "))}${x.courses.size ? " • " + esc([...x.courses].join("، ")) : ""}</div></div></div>
+      <div class="kpis">
+        ${kpi("التقييم العام", fmtPct(p), p)}
+        ${kpi("عدد الطلاب", fmt(Math.max(...x.parts.map((pt) => pt.stats.respondents))))}
+        ${kpi("أقوى بند", `<span class="vtext">${esc(best[0]?.label || "—")} <em>${fmtPct(best[0]?.p)}</em></span>`)}
+        ${kpi("أضعف بند", `<span class="vtext">${esc(best[best.length - 1]?.label || "—")} <em>${fmtPct(best[best.length - 1]?.p)}</em></span>`)}
+      </div>
+      ${x.parts.length > 1 ? `<div class="card glass"><h3>حسب المقرر / المستوى</h3><table class="mtable"><tbody>${x.parts.map((pt) => `<tr><td>${esc(pt.course || pt.level)}</td><td class="muted small">${esc(pt.course ? pt.level : "")}</td><td style="width:40%">${scoreBar(pct(pt.stats))}</td><td class="num">${fmt(pt.stats.respondents)} طالب</td></tr>`).join("")}</tbody></table></div>` : ""}
+      <div class="grid grid-2">
+        <div class="card glass"><h3>بنود التقييم</h3><div class="chart-box" style="height:${Math.max(280, list.length * 30)}px"><canvas id="mCrit"></canvas></div></div>
+        <div class="card glass"><h3>توزيع الإجابات</h3><div class="chart-box" style="height:260px"><canvas id="mDist"></canvas></div>
+          <h3 style="margin-top:18px">ملاحظات الطلاب <span class="count">${fmt(x.comments.length)}</span></h3>
+          <div class="comments">${x.comments.length ? x.comments.map((c) => `<div class="comment">${esc(c.text)}${x.parts.length > 1 ? `<small>${esc(c.course || c.level)}</small>` : ""}</div>`).join("") : `<p class="muted">لا توجد ملاحظات.</p>`}</div></div>
+      </div></div>`;
+    document.body.appendChild(div);
+    document.body.style.overflow = "hidden";
+    const mCharts = [];
+    const close = () => { mCharts.forEach((c) => c.destroy()); div.remove(); document.body.style.overflow = ""; document.removeEventListener("keydown", onKey); };
+    const onKey = (e) => e.key === "Escape" && close();
+    document.addEventListener("keydown", onKey);
+    div.onclick = (e) => e.target === div && close();
+    div.querySelector(".close").onclick = close;
+    mCharts.push(new Chart($("#mCrit"), {
+      type: "bar",
+      data: { labels: list.map((c) => c.label), datasets: [{ data: list.map((c) => round(c.p)), backgroundColor: list.map((c) => colorHex(c.p)), borderRadius: 6, maxBarThickness: 18 }] },
+      options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => c.raw + "%" } } }, scales: { x: { min: 0, max: 100, ticks: { callback: (v) => v + "%" } }, y: { position: "right", grid: { display: false }, ticks: { font: { size: 11 } } } } },
+    }));
+    mCharts.push(new Chart($("#mDist"), {
+      type: "doughnut",
+      data: { labels: DIST_LABELS, datasets: [{ data: [...x.stats.dist], backgroundColor: DIST_COLORS, borderColor: "rgba(255,255,255,.25)", borderWidth: 2 }] },
+      options: { maintainAspectRatio: false, cutout: "60%", plugins: { legend: { position: "left", rtl: true } } },
+    }));
+  }
+
+  /* ---------- Shared ---------- */
+  const round = (v) => (v == null ? null : Math.round(v * 10) / 10);
+
+  function bindHrefs() {
+    document.querySelectorAll("#content [data-href]").forEach((c) => (c.onclick = () => (location.hash = c.dataset.href)));
+  }
+
+  function compareChart(id, labels, list) {
+    const series = [["all", "الرضا العام", "#5ab0ff"], ["doctor", "هيئة التدريس", "#3ddc97"], ["ta", "الهيئة المعاونة", "#b98cff"]];
+    charts.push(new Chart(document.getElementById(id), {
+      type: "bar",
+      data: { labels, datasets: series.map(([k, l, c]) => ({ label: l, data: list.map((S) => round(pct(S[k]))), backgroundColor: c, borderRadius: 6, maxBarThickness: 30 })) },
+      options: { maintainAspectRatio: false, plugins: { legend: { position: "top", rtl: true }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.raw}%` } } }, scales: { y: { min: 0, max: 100, ticks: { callback: (v) => v + "%" } }, x: { grid: { display: false } } } },
+    }));
+  }
+
+  /* ---------- Demo data (?demo) ---------- */
+  function demoData(form, schema) {
+    let seed = [...form.id].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) % 233280;
+    const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    const words = ["غير موافق تماما", "غير موافق", "الى حد ما", "موافق", "موافق تماما"];
+    const notes = ["الشرح ممتاز وواضح جدًا", "محتاجين أمثلة عملية أكتر", "ياريت الالتزام بمواعيد المحاضرات", "شكرًا على المجهود", "الامتحانات أصعب من الشرح", "أسلوب ممتاز في التعامل مع الطلاب", "محتاجين ساعات مكتبية أكتر"];
+    const headers = ["Timestamp"];
+    const kinds = [];
+    schema.sections.forEach((s) => {
+      const bias = 2.4 + rnd() * 1.9;
+      s.grids.forEach((g) => g.rows.forEach((r) => { headers.push(`${g.title} [${r.text}]`); kinds.push({ bias: bias + (rnd() - 0.5) * 0.6 }); }));
+      s.comments.forEach((c) => { headers.push(c.title); kinds.push({ note: true }); });
+    });
+    const n = 25 + Math.floor(rnd() * 90);
+    const rows = Array.from({ length: n }, (_, i) => ["2026/11/" + (10 + (i % 6)), ...kinds.map((k) => k.note ? (rnd() > 0.9 ? notes[Math.floor(rnd() * notes.length)] : "") : words[Math.min(4, Math.max(0, Math.round(k.bias + (rnd() - 0.5) * 2.2)))])]);
+    return { headers, rows };
+  }
+
+  /* ---------- Start ---------- */
+  fetch("data/forms.json?_=" + Date.now())
+    .then((r) => r.json())
+    .then((s) => (SCHEMA = s))
+    .catch((e) => console.error("forms.json", e))
+    .finally(() => {
+      window.addEventListener("hashchange", () => render());
+      render();
+    });
 })();

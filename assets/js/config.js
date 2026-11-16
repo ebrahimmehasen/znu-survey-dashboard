@@ -1,17 +1,22 @@
 /*
  * إعدادات الداش بورد
  * ------------------------------------------------------------
- * لكل برنامج حط لينك شيت الردود (Google Sheets) في sheetUrl.
- * ينفع تحط:
- *   - لينك الشيت العادي (.../spreadsheets/d/<ID>/edit#gid=0) والشيت متشارك "Anyone with the link"
- *   - أو لينك "Publish to web" بصيغة CSV (.../pub?output=csv)
- * لو sheetUrl فاضي، البرنامج يظهر "لا توجد بيانات بعد".
+ * - faculties: الكليات وبرامجها (للقائمة الجانبية)
+ * - forms: كل فورم استطلاع (فورم لكل مستوى)، مربوط ببرنامج أو أكتر
+ *     formId   : الـ ID من لينك الفورم  docs.google.com/forms/d/<formId>/edit
+ *     sheetUrl : لينك شيت الردود بتاع الفورم ده. لازم يكون Share لـ "Anyone with the link"
+ *                أو منشور من File > Share > Publish to web.
+ *                لو فاضي، الفورم يظهر "في انتظار الردود".
+ *
+ * بعد ما تضيف فورم جديد أو تعدل أسئلة فورم، شغّل:
+ *     node tools/build-schema.js
+ * عشان يتحدث ملف data/forms.json (أسماء الدكاترة والمعيدين والبنود).
  */
 window.DASHBOARD_CONFIG = {
   university: {
     nameAr: "جامعة الزقازيق الأهلية",
     nameEn: "Zagazig National University",
-    surveyTitle: "نتائج استطلاع رأي الطلاب",
+    surveyTitle: "استبيان تقييم أعضاء هيئة التدريس والهيئة المعاونة • الترم الأول 2026/2027",
     logo: "assets/img/logo.png",
     background: "assets/img/background.jpg",
   },
@@ -21,53 +26,57 @@ window.DASHBOARD_CONFIG = {
 
   faculties: [
     {
-      id: "engineering",
-      nameAr: "كلية الهندسة",
-      nameEn: "Faculty of Engineering",
-      icon: "⚙️",
+      id: "engineering", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering", icon: "⚙️",
       programs: [
-        { id: "mechatronics", nameAr: "هندسة الميكاترونكس", nameEn: "Mechatronics Engineering", formUrl: "", sheetUrl: "" },
-        { id: "construction", nameAr: "هندسة التشييد", nameEn: "Construction Engineering", formUrl: "", sheetUrl: "" },
+        { id: "mechatronics", nameAr: "هندسة الميكاترونكس", nameEn: "Mechatronics Engineering" },
+        { id: "construction", nameAr: "هندسة التشييد", nameEn: "Construction Engineering" },
       ],
     },
     {
-      id: "dentistry",
-      nameAr: "كلية طب الأسنان",
-      nameEn: "Faculty of Dentistry",
-      icon: "🦷",
+      id: "dentistry", nameAr: "كلية طب الأسنان", nameEn: "Faculty of Dentistry", icon: "🦷",
+      programs: [{ id: "dentistry", nameAr: "طب وجراحة الفم والأسنان", nameEn: "Dentistry" }],
+    },
+    {
+      id: "pharmacy", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy", icon: "💊",
+      programs: [{ id: "clinical-pharmacy", nameAr: "الصيدلة الإكلينيكية", nameEn: "Clinical Pharmacy" }],
+    },
+    {
+      id: "commerce", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce", icon: "📊",
       programs: [
-        { id: "dentistry", nameAr: "طب وجراحة الفم والأسنان", nameEn: "Dentistry", formUrl: "", sheetUrl: "" },
+        { id: "accounting", nameAr: "المحاسبة", nameEn: "Accounting" },
+        { id: "business", nameAr: "إدارة الأعمال", nameEn: "Business Administration" },
       ],
     },
     {
-      id: "pharmacy",
-      nameAr: "كلية الصيدلة",
-      nameEn: "Faculty of Pharmacy",
-      icon: "💊",
+      id: "computers", nameAr: "كلية الحاسبات والمعلومات", nameEn: "Faculty of Computers & Information", icon: "💻",
       programs: [
-        { id: "pharmacy", nameAr: "الصيدلة", nameEn: "Pharmacy", formUrl: "", sheetUrl: "" },
+        { id: "aviation-is", nameAr: "نظم معلومات الطيران", nameEn: "Aviation Information Systems" },
+        { id: "medical-informatics", nameAr: "المعلوماتية الطبية", nameEn: "Medical Informatics" },
+        { id: "ai", nameAr: "الذكاء الاصطناعي", nameEn: "Artificial Intelligence" },
       ],
     },
-    {
-      id: "commerce",
-      nameAr: "كلية التجارة",
-      nameEn: "Faculty of Commerce",
-      icon: "📊",
-      programs: [
-        { id: "accounting", nameAr: "المحاسبة", nameEn: "Accounting", formUrl: "", sheetUrl: "" },
-        { id: "business", nameAr: "إدارة الأعمال", nameEn: "Business Administration", formUrl: "", sheetUrl: "" },
-      ],
-    },
-    {
-      id: "computers",
-      nameAr: "كلية الحاسبات والمعلومات",
-      nameEn: "Faculty of Computers & Information",
-      icon: "💻",
-      programs: [
-        { id: "aviation-is", nameAr: "نظم معلومات الطيران", nameEn: "Aviation Information Systems", formUrl: "", sheetUrl: "" },
-        { id: "medical-informatics", nameAr: "المعلوماتية الطبية", nameEn: "Medical Informatics", formUrl: "", sheetUrl: "" },
-        { id: "ai", nameAr: "الذكاء الاصطناعي", nameEn: "Artificial Intelligence", formUrl: "", sheetUrl: "" },
-      ],
-    },
+  ],
+
+  forms: [
+    // الهندسة - ميكاترونكس
+    { id: "mech-000", programs: ["mechatronics"], level: "مستوى 000", order: 0, formId: "1xXIgAZXtV51AMONMYdhxag2wp6GHV0u5BACE-jJBrf8", sheetUrl: "" },
+    { id: "mech-100", programs: ["mechatronics"], level: "مستوى 100", order: 1, formId: "1zA6yDl0vUX7FReZ_uoQlZ0A7Z_LksqyBvMqb6v4InUU", sheetUrl: "" },
+    { id: "mech-200", programs: ["mechatronics"], level: "مستوى 200", order: 2, formId: "1hxMeBmzj3IyCqxGW5T8JiFxyodS8GEreGwVnQbolrk8", sheetUrl: "" },
+    { id: "mech-300", programs: ["mechatronics"], level: "مستوى 300", order: 3, formId: "1iQ3IwF6DH4Clg66ei-cfQAg2CzFhzlXuUmQw22bJHFI", sheetUrl: "" },
+    { id: "mech-400", programs: ["mechatronics"], level: "مستوى 400", order: 4, formId: "1fnVYj086How1OuXLg2NQaDEt5hCMpyz3JfwAgIkRvLE", sheetUrl: "" },
+
+    // طب الأسنان
+    { id: "dent-4", programs: ["dentistry"], level: "الفرقة الرابعة", order: 4, formId: "1xhK_dgQUIcO9ol1zzrHhGn8AZVmnnAKr2fSK5Dgxzsk", sheetUrl: "" },
+    { id: "dent-5", programs: ["dentistry"], level: "الفرقة الخامسة", order: 5, formId: "146exCUKU2kMazlTOVbGKUbympyBKGcnZ5Wd6kWEEe4w", sheetUrl: "" },
+
+    // الصيدلة
+    { id: "pharm-1", programs: ["clinical-pharmacy"], level: "المستوى الأول", order: 1, formId: "1xwC6eZJ7mhPVKvSfqeScpv5pY5IOFqs0-vCTkWjyGfY", sheetUrl: "" },
+
+    // التجارة (المستويات 1-3 مشتركة بين المحاسبة وإدارة الأعمال)
+    { id: "com-1", programs: ["accounting", "business"], level: "المستوى الأول", order: 1, formId: "1bwHZ6K3FRLtkxMVt-J_FqaAE5WJrNJ7nkxkqjxtvNqg", sheetUrl: "" },
+    { id: "com-2", programs: ["accounting", "business"], level: "المستوى الثاني", order: 2, formId: "18GgtQHXGbRRzgReq-7bjcP_dSeuObU5WsYNwV-CCLCo", sheetUrl: "" },
+    { id: "com-3", programs: ["accounting", "business"], level: "المستوى الثالث", order: 3, formId: "1PNZt4Rvbyov--hU_jT-2JLzdtMGX5GYuIwCcFGoyx-Y", sheetUrl: "" },
+    { id: "acc-4", programs: ["accounting"], level: "المستوى الرابع", order: 4, formId: "1sn-2Zoghai12UZYvpkT1z1z_YHvHgKRzVpbF2omMTeI", sheetUrl: "" },
+    { id: "bus-4", programs: ["business"], level: "المستوى الرابع", order: 4, formId: "1BV7rAaa0FLHzNwKdr2DubsJwqPWYjzRysh1MX3vJLx4", sheetUrl: "" },
   ],
 };
