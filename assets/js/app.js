@@ -38,30 +38,53 @@
   const hasSource = (f) => DEMO || !!f.sheetUrl;
 
   /* ---------- Data ---------- */
-  async function loadForm(form) {
-    if (cache.has(form.formId)) return cache.get(form.formId);
-    let entry;
+  // One request per form at a time: pages ask for the same form several times while rendering.
+  function loadForm(form) {
+    if (!cache.has(form.formId)) {
+      const p = loadFormNow(form).then((entry) => {
+        if (entry.error) cache.delete(form.formId); // retry on the next refresh instead of keeping the failure
+        return entry;
+      });
+      cache.set(form.formId, p);
+    }
+    return cache.get(form.formId);
+  }
+
+  async function loadFormNow(form) {
     const schema = SCHEMA.forms[form.formId];
     try {
-      if (!schema) entry = { analysis: null, error: "شكل الفورم مش موجود — شغّل tools/build-schema.js" };
-      else if (!hasSource(form)) entry = { analysis: null };
-      else {
-        const { headers, rows } = DEMO ? demoData(form, schema) : await fetchSheet(form.sheetUrl);
-        entry = { analysis: analyzeForm(schema, headers, rows) };
-      }
+      if (!schema) return { analysis: null, error: "شكل الفورم مش موجود — شغّل tools/build-schema.js" };
+      if (!hasSource(form)) return { analysis: null };
+      const { headers, rows } = DEMO ? demoData(form, schema) : await fetchSheet(form.sheetUrl);
+      return { analysis: analyzeForm(schema, headers, rows) };
     } catch (e) {
       console.error(form.id, e);
-      entry = { analysis: null, error: e.message || String(e) };
+      return { analysis: null, error: e.message || String(e) };
     }
-    cache.set(form.formId, entry);
-    return entry;
+  }
+
+  async function fetchWithRetry(url, tries = 3) {
+    for (let i = 1; ; i++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 20000);
+      try {
+        const res = await fetch(url + (url.includes("?") ? "&" : "?") + "_=" + Date.now(), { signal: ctrl.signal });
+        if (res.status >= 500 && i < tries) throw new Error("server " + res.status);
+        return res;
+      } catch (e) {
+        if (i >= tries) throw e;
+        await new Promise((r) => setTimeout(r, 800 * i));
+      } finally {
+        clearTimeout(timer);
+      }
+    }
   }
 
   async function fetchSheet(url) {
     const u = toCsvUrl(url);
     const NOT_SHARED = "شيت الردود مش متشارك للعامة — لازم يتعمل Share لـ Anyone with the link (Viewer)";
     let res;
-    try { res = await fetch(u + (u.includes("?") ? "&" : "?") + "_=" + Date.now()); } catch { throw new Error(NOT_SHARED); }
+    try { res = await fetchWithRetry(u); } catch { throw new Error("تعذر الاتصال بشيت الردود — جرّب ↻ تحديث"); }
     if (res.status === 401 || res.status === 403) throw new Error(NOT_SHARED);
     if (!res.ok) throw new Error("تعذر قراءة الشيت (" + res.status + ")");
     const text = await res.text();
