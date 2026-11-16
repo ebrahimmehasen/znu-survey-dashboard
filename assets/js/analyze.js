@@ -26,14 +26,17 @@
 
   const bracket = (h) => { const m = String(h).match(/\[(.*)\]\s*$/s); return m ? norm(m[1]) : null; };
 
-  // يربط كل قسم بأرقام أعمدته في الشيت
+  // يربط كل قسم بأرقام أعمدته في الشيت.
+  // الأعمدة بتتكرر بنفس العنوان في كل قسم، فالربط لازم يمشي لقدام بس وقريب من آخر عمود اتربط:
+  // لو عمود ناقص، بنسيبه فاضي بدل ما ناخد عمود القسم اللي بعده ونزحزح كل الأقسام.
+  const LOOKAHEAD = 3;
   function mapColumns(schema, headers) {
     const used = new Set();
     const nh = headers.map(norm), nb = headers.map(bracket);
     let cursor = 0, matched = 0, expected = 0;
     const find = (pred) => {
-      for (let i = cursor; i < headers.length; i++) if (!used.has(i) && pred(i)) return i;
-      for (let i = 0; i < cursor; i++) if (!used.has(i) && pred(i)) return i;
+      const end = Math.min(headers.length, cursor + LOOKAHEAD);
+      for (let i = cursor; i < end; i++) if (!used.has(i) && pred(i)) return i;
       return -1;
     };
     const take = (i) => { if (i >= 0) { used.add(i); cursor = i + 1; matched++; } expected++; return i; };
