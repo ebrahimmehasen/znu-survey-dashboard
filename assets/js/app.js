@@ -7,8 +7,8 @@
   const fmt = (n, d = 0) => (n == null || isNaN(n) ? "—" : Number(n).toLocaleString("ar-EG", { maximumFractionDigits: d, minimumFractionDigits: d }));
   const fmtPct = (p) => (p == null ? "—" : fmt(p) + "%");
   const color = (p) => (p == null ? "rgba(255,255,255,.3)" : p >= 80 ? "var(--good)" : p >= 65 ? "var(--mid)" : "var(--bad)");
-  const colorHex = (p) => (p >= 80 ? "#3ddc97" : p >= 65 ? "#f5c542" : "#ff6b6b");
-  const DIST_COLORS = ["#ff6b6b", "#ff9f5a", "#f5c542", "#7fd6a8", "#3ddc97"];
+  const colorHex = (p) => (p >= 80 ? "#4cc38a" : p >= 65 ? "#f0c45c" : "#f2766b");
+  const DIST_COLORS = ["#f2766b", "#f0a35c", "#f0c45c", "#8fd6a8", "#4cc38a"];
   const DIST_LABELS = ["غير موافق تمامًا", "غير موافق", "إلى حد ما", "موافق", "موافق تمامًا"];
   const ROLE = { doctor: "عضو هيئة تدريس", ta: "هيئة معاونة", unknown: "هيئة معاونة" };
 
@@ -24,9 +24,6 @@
   const logo = $("#logo");
   logo.onerror = () => (logo.style.display = "none");
   logo.src = U.logo;
-  const bgImg = new Image();
-  bgImg.onload = () => ($("#bg").style.backgroundImage = `url('${U.background}')`);
-  bgImg.src = U.background;
 
   Chart.defaults.font.family = "Cairo, sans-serif";
   Chart.defaults.color = "rgba(255,255,255,.85)";
@@ -49,7 +46,7 @@
       if (!schema) entry = { analysis: null, error: "شكل الفورم مش موجود — شغّل tools/build-schema.js" };
       else if (!hasSource(form)) entry = { analysis: null };
       else {
-        const { headers, rows } = DEMO && !form.sheetUrl ? demoData(form, schema) : await fetchSheet(form.sheetUrl);
+        const { headers, rows } = DEMO ? demoData(form, schema) : await fetchSheet(form.sheetUrl);
         entry = { analysis: analyzeForm(schema, headers, rows) };
       }
     } catch (e) {
@@ -311,14 +308,14 @@
     charts.push(new Chart($("#ovLevels"), {
       type: "bar",
       data: { labels: lv.map((l) => l.level), datasets: [
-        { label: "هيئة التدريس", data: lv.map((l) => round(pct(l.doctor))), backgroundColor: "#5ab0ff", borderRadius: 8, maxBarThickness: 34 },
-        { label: "الهيئة المعاونة", data: lv.map((l) => round(pct(l.ta))), backgroundColor: "#b98cff", borderRadius: 8, maxBarThickness: 34 },
+        { label: "هيئة التدريس", data: lv.map((l) => round(pct(l.doctor))), backgroundColor: "#6cb4ee", borderRadius: 8, maxBarThickness: 34 },
+        { label: "الهيئة المعاونة", data: lv.map((l) => round(pct(l.ta))), backgroundColor: "#c49bff", borderRadius: 8, maxBarThickness: 34 },
       ] },
       options: { maintainAspectRatio: false, plugins: { legend: { position: "top", rtl: true }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.raw}%` } } }, scales: { y: { min: 0, max: 100, ticks: { callback: (v) => v + "%" } }, x: { grid: { display: false } } } },
     }));
     charts.push(new Chart($("#ovDist"), {
       type: "doughnut",
-      data: { labels: DIST_LABELS, datasets: [{ data: [...S.all.dist], backgroundColor: DIST_COLORS, borderColor: "rgba(255,255,255,.25)", borderWidth: 2 }] },
+      data: { labels: DIST_LABELS, datasets: [{ data: [...S.all.dist], backgroundColor: DIST_COLORS, borderColor: "rgba(10,16,24,.6)", borderWidth: 2 }] },
       options: { maintainAspectRatio: false, cutout: "62%", plugins: { legend: { position: "left", rtl: true } } },
     }));
   }
@@ -459,7 +456,7 @@
     }));
     mCharts.push(new Chart($("#mDist"), {
       type: "doughnut",
-      data: { labels: DIST_LABELS, datasets: [{ data: [...x.stats.dist], backgroundColor: DIST_COLORS, borderColor: "rgba(255,255,255,.25)", borderWidth: 2 }] },
+      data: { labels: DIST_LABELS, datasets: [{ data: [...x.stats.dist], backgroundColor: DIST_COLORS, borderColor: "rgba(10,16,24,.6)", borderWidth: 2 }] },
       options: { maintainAspectRatio: false, cutout: "60%", plugins: { legend: { position: "left", rtl: true } } },
     }));
   }
@@ -472,7 +469,7 @@
   }
 
   function compareChart(id, labels, list) {
-    const series = [["all", "الرضا العام", "#5ab0ff"], ["doctor", "هيئة التدريس", "#3ddc97"], ["ta", "الهيئة المعاونة", "#b98cff"]];
+    const series = [["all", "الرضا العام", "#3fb59a"], ["doctor", "هيئة التدريس", "#6cb4ee"], ["ta", "الهيئة المعاونة", "#c49bff"]];
     charts.push(new Chart(document.getElementById(id), {
       type: "bar",
       data: { labels, datasets: series.map(([k, l, c]) => ({ label: l, data: list.map((S) => round(pct(S[k]))), backgroundColor: c, borderRadius: 6, maxBarThickness: 30 })) },

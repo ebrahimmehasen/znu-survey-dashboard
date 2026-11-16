@@ -32,8 +32,8 @@
 3. اعمل commit و push.
 
 ## الصور
-- `assets/img/background.jpg`: خلفية الجامعة
-- `assets/img/logo.png`: لوجو الجامعة
+- `assets/img/campus-bg.webp` و `campus-bg-sm.webp`: صورة الجامعة (نفس صورة بوابة الأنشطة)
+- `assets/img/logo.webp`: لوجو الجامعة
 
 ## تشغيل محلي
 ```bash

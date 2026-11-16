@@ -17,8 +17,9 @@ window.DASHBOARD_CONFIG = {
     nameAr: "جامعة الزقازيق الأهلية",
     nameEn: "Zagazig National University",
     surveyTitle: "استبيان تقييم أعضاء هيئة التدريس والهيئة المعاونة • الترم الأول 2026/2027",
-    logo: "assets/img/logo.png",
-    background: "assets/img/background.jpg",
+    logo: "assets/img/logo.webp",
+    background: "assets/img/campus-bg.webp",
+    backgroundSmall: "assets/img/campus-bg-sm.webp",
   },
 
   // تحديث تلقائي كل كام دقيقة (0 = بدون)
