@@ -95,7 +95,8 @@
           if (t && !/^[-_.\s0]*$|^(لا|لايوجد|لا يوجد|no|none|nothing|مفيش)$/i.test(norm(t))) comments.push(t);
         });
       }
-      out.sections.push({ name: s.name, title: s.title, role: s.role, course: s.course, key: s.key, stats: st, comments });
+      // hasBox: the form gave students a box to write comments for this person (some sections only have a title)
+      out.sections.push({ name: s.name, title: s.title, role: s.role, course: s.course, key: s.key, stats: st, comments, hasBox: s.comments.length > 0 });
     });
     return out;
   }

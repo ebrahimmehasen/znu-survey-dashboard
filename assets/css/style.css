@@ -234,3 +234,10 @@ code { background: rgb(255 255 255 / .1); padding: 1px 6px; border-radius: 6px; 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* Comments grouped by role */
+.comment-group { padding: 14px 22px; border-inline-start: 3px solid var(--primary); }
+.comment-group h3 { font-size: 18px; }
+.comment-group .sub { margin-bottom: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.nocomment-card .chip small { color: var(--muted); }

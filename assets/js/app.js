@@ -125,6 +125,7 @@
         p.levels.add(e.form.level);
         p.parts.push({ level: e.form.level, course: s.course, stats: s.stats });
         s.comments.forEach((t) => p.comments.push({ text: t, level: e.form.level, course: s.course }));
+        if (s.hasBox) p.hasBox = true;
         if (s.course) S.courses.push({ course: s.course, name: s.name, staffId: k, level: e.form.level, stats: s.stats });
       }
       S.levels.push(lv);
@@ -417,19 +418,41 @@
   }
 
   function commentsTab(S) {
-    const people = S.staffList.filter((x) => x.comments.length).sort((a, b) => b.comments.length - a.comments.length);
-    if (!people.length) return emptyState("مفيش ملاحظات مكتوبة من الطلاب", "", "💬");
-    return `<div class="card glass"><div class="card-head"><div><h3>ملاحظات ومقترحات الطلاب</h3><div class="sub">${fmt(people.reduce((n, x) => n + x.comments.length, 0))} ملاحظة</div></div>
-      <input class="search" id="commentSearch" placeholder="🔎 بحث في الملاحظات أو الأسماء…" /></div></div>
-      <div class="grid grid-2" id="commentGrid">${people.map((x) => `<div class="card glass comment-card">
-        <div class="card-head"><div><h3 class="clickable" data-staff="${esc(x.id)}">${esc(x.name)}</h3><div class="sub">${ROLE[x.rawRole]} • ${fmt(x.comments.length)} ملاحظة • تقييم ${fmtPct(pct(x.stats))}</div></div></div>
-        <div class="comments">${x.comments.map((c) => `<div class="comment">${esc(c.text)}<small>${esc(c.course || c.level)}</small></div>`).join("")}</div></div>`).join("")}</div>`;
+    const total = S.staffList.reduce((n, x) => n + x.comments.length, 0);
+    const groups = [["doctor", "أعضاء هيئة التدريس", "👨‍🏫"], ["ta", "الهيئة المعاونة", "🧑‍🔬"]]
+      .map(([role, label, icon]) => ({ role, label, icon, all: S.staffList.filter((x) => x.role === role) }))
+      .filter((g) => g.all.length);
+
+    const section = (g) => {
+      const withC = g.all.filter((x) => x.comments.length).sort((a, b) => b.comments.length - a.comments.length);
+      const without = g.all.filter((x) => !x.comments.length);
+      const noBox = without.filter((x) => !x.hasBox);
+      const count = withC.reduce((n, x) => n + x.comments.length, 0);
+      return `<div class="card glass comment-group">
+          <h3>${g.icon} ${g.label}</h3>
+          <div class="sub">${fmt(count)} ملاحظة • ${fmt(withC.length)} من ${fmt(g.all.length)} عضو اتكتب عنهم ملاحظات</div>
+        </div>
+        ${withC.length ? `<div class="grid grid-2">${withC.map((x) => `<div class="card glass comment-card">
+          <div class="card-head"><div><h3 class="clickable" data-staff="${esc(x.id)}">${esc(x.name)}</h3><div class="sub">${ROLE[x.rawRole]} • ${fmt(x.comments.length)} ملاحظة • تقييم ${fmtPct(pct(x.stats))}</div></div></div>
+          <div class="comments">${x.comments.map((c) => `<div class="comment">${esc(c.text)}<small>${esc(c.course || c.level)}</small></div>`).join("")}</div></div>`).join("")}</div>` : ""}
+        ${without.length ? `<div class="card glass nocomment-card">
+          <h3>بدون ملاحظات <span class="count">${fmt(without.length)}</span></h3>
+          <div class="sub">${noBox.length ? `🔒 = الفورم ماكانش فيه خانة لكتابة ملاحظات عن العضو ده (${fmt(noBox.length)} عضو). الباقي الطلاب ماكتبوش عنهم.` : "الطلاب ماكتبوش ملاحظات عن الأعضاء دول."}</div>
+          <div class="chips">${without.map((x) => `<button class="chip clickable" data-staff="${esc(x.id)}">${x.hasBox ? "" : "🔒 "}${esc(x.name)} <small>${fmtPct(pct(x.stats))}</small></button>`).join("")}</div>
+        </div>` : ""}`;
+    };
+
+    return `<div class="card glass"><div class="card-head"><div><h3>ملاحظات ومقترحات الطلاب</h3><div class="sub">${fmt(total)} ملاحظة • مقسمة حسب أعضاء هيئة التدريس والهيئة المعاونة</div></div>
+      ${total ? `<input class="search" id="commentSearch" placeholder="🔎 بحث في الملاحظات أو الأسماء…" />` : ""}</div></div>
+      ${groups.map(section).join("")}`;
   }
 
   function bindCommentSearch() {
     const input = $("#commentSearch");
+    if (!input) return;
     input.oninput = () => {
       const t = input.value.trim();
+      document.querySelectorAll(".nocomment-card .chip").forEach((c) => (c.style.display = !t || c.textContent.includes(t) ? "" : "none"));
       document.querySelectorAll(".comment-card").forEach((card) => {
         const nameHit = card.querySelector("h3").textContent.includes(t);
         let any = false;
@@ -468,7 +491,7 @@
         <div class="card glass"><h3>بنود التقييم</h3><div class="chart-box" style="height:${Math.max(280, list.length * 30)}px"><canvas id="mCrit"></canvas></div></div>
         <div class="card glass"><h3>توزيع الإجابات</h3><div class="chart-box" style="height:260px"><canvas id="mDist"></canvas></div>
           <h3 style="margin-top:18px">ملاحظات الطلاب <span class="count">${fmt(x.comments.length)}</span></h3>
-          <div class="comments">${x.comments.length ? x.comments.map((c) => `<div class="comment">${esc(c.text)}${x.parts.length > 1 ? `<small>${esc(c.course || c.level)}</small>` : ""}</div>`).join("") : `<p class="muted">لا توجد ملاحظات.</p>`}</div></div>
+          <div class="comments">${x.comments.length ? x.comments.map((c) => `<div class="comment">${esc(c.text)}${x.parts.length > 1 ? `<small>${esc(c.course || c.level)}</small>` : ""}</div>`).join("") : `<p class="muted">${x.hasBox ? "لا توجد ملاحظات." : "🔒 الفورم ماكانش فيه خانة لكتابة ملاحظات عن العضو ده."}</p>`}</div></div>
       </div></div>`;
     document.body.appendChild(div);
     document.body.style.overflow = "hidden";
