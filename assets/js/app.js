@@ -56,7 +56,7 @@
       if (!schema) return { analysis: null, error: "شكل الفورم مش موجود — شغّل tools/build-schema.js" };
       if (!hasSource(form)) return { analysis: null };
       const { headers, rows } = DEMO ? demoData(form, schema) : await fetchSheet(form.sheetUrl);
-      return { analysis: analyzeForm(schema, headers, rows) };
+      return { analysis: analyzeForm(schema, headers, rows, { excludeNotTaught: true }) };
     } catch (e) {
       console.error(form.id, e);
       return { analysis: null, error: e.message || String(e) };
@@ -106,7 +106,7 @@
     const S = {
       forms: entries, responses: 0, active: 0, lastResponse: null,
       all: emptyStats(), doctor: emptyStats(), ta: emptyStats(),
-      staff: new Map(), courses: [], levels: [],
+      staff: new Map(), courses: [], levels: [], notTaught: 0,
     };
     for (const e of entries) {
       const a = e.analysis;
@@ -118,7 +118,7 @@
         const role = s.role === "doctor" ? "doctor" : "ta";
         addStats(S.all, s.stats); addStats(S[role], s.stats); addStats(lv[role], s.stats);
         const k = role + ":" + s.key;
-        if (!S.staff.has(k)) S.staff.set(k, { id: k, name: s.name, title: s.title, role, rawRole: s.role, stats: emptyStats(), courses: new Set(), levels: new Set(), comments: [], parts: [] });
+        if (!S.staff.has(k)) S.staff.set(k, { id: k, name: s.name, title: s.title, role, rawRole: s.role, stats: emptyStats(), courses: new Set(), levels: new Set(), comments: [], parts: [], notTaught: 0 });
         const p = S.staff.get(k);
         addStats(p.stats, s.stats);
         if (s.course) p.courses.add(s.course);
@@ -126,6 +126,8 @@
         p.parts.push({ level: e.form.level, course: s.course, stats: s.stats });
         s.comments.forEach((t) => p.comments.push({ text: t, level: e.form.level, course: s.course }));
         if (s.hasBox) p.hasBox = true;
+        p.notTaught += s.notTaught || 0;
+        S.notTaught += s.notTaught || 0;
         if (s.course) S.courses.push({ course: s.course, name: s.name, staffId: k, level: e.form.level, stats: s.stats });
       }
       S.levels.push(lv);
@@ -297,6 +299,7 @@
         ${allForms.map((x) => `<button class="chip ${route.level === x.id ? "active" : ""}" data-href="${base}/${tab}?level=${x.id}"><span class="dot ${hasSource(x) ? "on" : "wait"}"></span>${esc(x.level)}${x.programs.length > 1 ? ` <small>(مشترك)</small>` : ""}</button>`).join("")}
       </div>
       ${kpiRow(S)}
+      ${S.notTaught && S.all.count ? `<div class="glass note">ℹ️ اتشال من الحساب ${fmt(S.notTaught)} تقييم لطلاب كتبوا في الملاحظات إن العضو مابيدرسلهمش (زي "مباخدش معاه" أو "لم يدرس لي")، عشان النسب تبقى مبنية على طلاب درسوا معاه فعلًا.</div>` : ""}
       ${errors.length && S.all.count ? `<div class="glass warn">⚠️ ${errors.map((e) => `${esc(e.form.level)}: ${esc(e.error)}`).join(" • ")}</div>` : ""}
       <div class="tabs glass">${tabs.map(([k, l]) => `<button class="tab ${tab === k ? "active" : ""}" data-href="${base}/${k}${q}">${l}</button>`).join("")}</div>
       ${body}
@@ -482,7 +485,7 @@
         <div><h2>${esc(x.title)}</h2><div class="sub">${ROLE[x.rawRole]} • ${esc([...x.levels].join("، "))}${x.courses.size ? " • " + esc([...x.courses].join("، ")) : ""}</div></div></div>
       <div class="kpis">
         ${kpi("التقييم العام", fmtPct(p), p)}
-        ${kpi("عدد الطلاب", fmt(Math.max(...x.parts.map((pt) => pt.stats.respondents))))}
+        ${kpi("عدد الطلاب", fmt(Math.max(...x.parts.map((pt) => pt.stats.respondents))), undefined, x.notTaught ? `+ ${fmt(x.notTaught)} قالوا إنه مابيدرسلهمش (مش محسوبين)` : "")}
         ${kpi("أقوى بند", `<span class="vtext">${esc(best[0]?.label || "—")} <em>${fmtPct(best[0]?.p)}</em></span>`)}
         ${kpi("أضعف بند", `<span class="vtext">${esc(best[best.length - 1]?.label || "—")} <em>${fmtPct(best[best.length - 1]?.p)}</em></span>`)}
       </div>

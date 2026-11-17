@@ -59,8 +59,17 @@
   }
   const pct = (st) => (st && st.count ? (st.sum / st.count / 5) * 100 : null);
 
+  // ملاحظات مالهاش محتوى ("لا يوجد"، "لا تعليق"، "."، إيموجي بس)
+  const EMPTY = /^(لا|لايوجد|لا يوجد|لاتوجد|لا توجد|لا شيء|لا شئ|لاشئ|مفيش|مافيش|مفيش حاجه|لا تعليق|بدون تعليق|لا ملاحظات|لا ملاحظه|لا يوجد ملاحظات|لا توجد ملاحظات|لايوجد ملاحظات|لا يوجد اي ملاحظات|لا شكرا|no|none|nothing|nope|n\/a)$/i;
+  const isEmptyComment = (t) => { const n = norm(t); return !n || /^[-_.\s0؟?!]*$/.test(n) || !/[\p{L}\p{N}]/u.test(n) && !/\p{Extended_Pictographic}/u.test(n) || EMPTY.test(n); };
+
+  // الطالب بيقول إن العضو ده ماَدرسلوش، فتقييمه ليه مش مبني على تجربة
+  const NOT_TAUGHT = /(مباخدش|ماخدتش|مخدتش|مااخدتش|لم (اخذ|اخد|ادرس|يدرس|يدرسني|اتعامل|احضر)|مش بدرس|مش باخد|مش بياخد|مش بيدي|مبيدينيش|مش الدكتور بتاعي|مش الدكتوره بتاعتي|مش دكتوري|مش المعيد بتاعي|معرفوش|معرفهوش|معرفهاش|ماعرفوش|لا اعرفه|لا اعرفها|لا يدرس|لا يدرسني|ليس استاذي|مش معانا|مش بيدرسلي|مبدرسش|مش واخد معاه|مش واخده معاه)/;
+  const NOT_TAUGHT_SHORT = /^(معرفش|لا اعرف|لا اعلم|مش عارف|مش عارفه|معرفش الصراحه|لا اعلم عنه شيء)$/;
+  const isNotTaught = (t) => { const n = norm(t); return NOT_TAUGHT.test(n) || NOT_TAUGHT_SHORT.test(n); };
+
   /** يحلل فورم واحد: rows = مصفوفة صفوف (كل صف مصفوفة قيم) */
-  function analyzeForm(schema, headers, rows) {
+  function analyzeForm(schema, headers, rows, opts = {}) {
     const map = mapColumns(schema, headers);
     const tsIdx = headers.findIndex((h) => /timestamp|طابع زمني|الطابع الزمني/i.test(h));
     const out = {
@@ -73,8 +82,13 @@
       const cols = map.sections[si];
       const st = emptyStats();
       const comments = [];
+      let notTaught = 0;
       for (const row of rows) {
         let answered = false;
+        const rowComments = cols.comments.map((idx) => (idx >= 0 ? String(row[idx] ?? "").trim() : "")).filter(Boolean);
+        const saysNotTaught = rowComments.some(isNotTaught);
+        if (saysNotTaught) notTaught++;
+        if (saysNotTaught && opts.excludeNotTaught) continue; // the student says this person didn't teach them
         s.grids.forEach((g, gi) => g.rows.forEach((r, ri) => {
           const idx = cols.grids[gi][ri];
           if (idx < 0) return;
@@ -90,13 +104,10 @@
           }
         }));
         if (answered) st.respondents++;
-        cols.comments.forEach((idx) => {
-          const t = idx >= 0 ? String(row[idx] ?? "").trim() : "";
-          if (t && !/^[-_.\s0]*$|^(لا|لايوجد|لا يوجد|no|none|nothing|مفيش)$/i.test(norm(t))) comments.push(t);
-        });
+        rowComments.forEach((t) => { if (!isEmptyComment(t)) comments.push(t); });
       }
       // hasBox: the form gave students a box to write comments for this person (some sections only have a title)
-      out.sections.push({ name: s.name, title: s.title, role: s.role, course: s.course, key: s.key, stats: st, comments, hasBox: s.comments.length > 0 });
+      out.sections.push({ name: s.name, title: s.title, role: s.role, course: s.course, key: s.key, stats: st, comments, notTaught, hasBox: s.comments.length > 0 });
     });
     return out;
   }
