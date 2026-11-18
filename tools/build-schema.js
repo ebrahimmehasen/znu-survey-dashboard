@@ -49,7 +49,8 @@ const criterionOf = (row) => {
 };
 
 const DOCTOR = /^(ا\s*\.?\s*م?\s*\.?\s*د(\s*\.?\s*م)?|ام\s*\.?\s*د|د)\s*[\/.\s]/;
-const TA = /^(م\s*\.?\s*م|م|ط|معيده?|ا)\s*[\/.\s]/;
+// طبيب/طبيبة = طبيب مقيم (هيئة معاونة)
+const TA = /^(م\s*\.?\s*م|م|ط|طبيبه?|معيده?|ا)\s*[\/.\s]/;
 
 function parsePerson(rawTitle) {
   let title = String(rawTitle).replace(/\s+/g, " ").trim();
@@ -60,7 +61,7 @@ function parsePerson(rawTitle) {
   let role = "unknown";
   if (DOCTOR.test(n)) role = "doctor";
   else if (TA.test(n)) role = "ta";
-  const name = title.replace(/^[^ء-ي]*?((ا|أ|إ)\s*\.?\s*م?\s*\.?\s*د(\s*\.?\s*م)?|أم\s*\.?\s*د|م\s*\.?\s*م|معيده?|د|م|ط|أ|ا)\s*[\/.\s]\s*/, "").trim() || title;
+  const name = title.replace(/^[^ء-ي]*?((ا|أ|إ)\s*\.?\s*م?\s*\.?\s*د(\s*\.?\s*م)?|أم\s*\.?\s*د|م\s*\.?\s*م|طبيبة?|معيدة?|معيده?|د|م|ط|أ|ا)\s*[\/.\s]\s*/, "").trim() || title;
   return { title, name, role, course, key: norm(name).replace(/[^ء-ي]/g, "") };
 }
 
