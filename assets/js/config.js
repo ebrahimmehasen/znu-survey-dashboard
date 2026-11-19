@@ -75,6 +75,9 @@ window.DASHBOARD_CONFIG = {
 
     // الصيدلة
     { id: "pharm-1", programs: ["clinical-pharmacy"], level: "المستوى الأول", order: 1, formId: "1xwC6eZJ7mhPVKvSfqeScpv5pY5IOFqs0-vCTkWjyGfY", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1270752952&single=true&output=csv" },
+    { id: "pharm-2", programs: ["clinical-pharmacy"], level: "المستوى الثاني", order: 2, formId: "e/1FAIpQLSerKc6mu-Aq3GeOAT2ncHI-bbvB1pBn0ibqhH5boKQUAFsxhQ", sheetUrl: "" },
+    { id: "pharm-3", programs: ["clinical-pharmacy"], level: "المستوى الثالث", order: 3, formId: "e/1FAIpQLSe4k9kn5nh5FFKP771ILmqX_tlswbAd5bvatoQ_3ARDJQcUMQ", sheetUrl: "" },
+    { id: "pharm-4", programs: ["clinical-pharmacy"], level: "المستوى الرابع", order: 4, formId: "e/1FAIpQLSfHV43iUJWiYBxgi7BkcEI5e8-VNrp_s8xtJ0OzgK2Nqjzg7A", sheetUrl: "" },
 
     // التجارة (المستويات 1-3 مشتركة بين المحاسبة وإدارة الأعمال)
     { id: "com-1", programs: ["accounting", "business"], level: "المستوى الأول", order: 1, formId: "1bwHZ6K3FRLtkxMVt-J_FqaAE5WJrNJ7nkxkqjxtvNqg", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1741575006&single=true&output=csv" },
