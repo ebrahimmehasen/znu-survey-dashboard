@@ -1,7 +1,10 @@
 /**
  * بيربط فورمز جديدة بشيت "ZNU Survey Dashboard - Public data (no emails)".
  *
- * الاستخدام (مرة واحدة):
+ * من الموبايل: افتح script.google.com/create في Chrome (Desktop site)، الزق الملف، واعمل Run لـ linkForms.
+ *   (السكريبت هيلاقي الشيت العام بالاسم لوحده.)
+ *
+ * الاستخدام من الكمبيوتر (مرة واحدة):
  *   1. افتح شيت "ZNU Survey Dashboard - Public data (no emails)".
  *   2. Extensions ← Apps Script، امسح اللي موجود والزق الملف ده كله، واحفظ.
  *   3. اختار الدالة linkForms من فوق ودوس Run، ووافق على الصلاحيات.
@@ -19,7 +22,7 @@ const FORMS = [
 ];
 
 function linkForms() {
-  const target = SpreadsheetApp.getActiveSpreadsheet();
+  const target = SpreadsheetApp.getActiveSpreadsheet() || findTarget_();
   const forms = findForms_(FORMS.map((f) => f.publicId));
   const report = [];
 
@@ -72,4 +75,11 @@ function findForms_(publicIds) {
     } catch (e) {}
   }
   return found;
+}
+
+// لو السكريبت مش جوه الشيت، بيدور على الشيت العام بالاسم
+function findTarget_() {
+  const it = DriveApp.searchFiles('title = "ZNU Survey Dashboard - Public data (no emails)" and mimeType = "application/vnd.google-apps.spreadsheet" and trashed = false');
+  if (!it.hasNext()) throw new Error('مش لاقي شيت "ZNU Survey Dashboard - Public data (no emails)" في الدرايف');
+  return SpreadsheetApp.open(it.next());
 }
