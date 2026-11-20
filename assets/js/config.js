@@ -76,8 +76,8 @@ window.DASHBOARD_CONFIG = {
     // الصيدلة
     { id: "pharm-1", programs: ["clinical-pharmacy"], level: "المستوى الأول", order: 1, formId: "1xwC6eZJ7mhPVKvSfqeScpv5pY5IOFqs0-vCTkWjyGfY", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1270752952&single=true&output=csv" },
     { id: "pharm-2", programs: ["clinical-pharmacy"], level: "المستوى الثاني", order: 2, formId: "11zImhKJlmiDkZ90IdYDtM7nxSJwTzjnWQ-Zu7c1CeXY", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1359291224&single=true&output=csv" },
-    { id: "pharm-3", programs: ["clinical-pharmacy"], level: "المستوى الثالث", order: 3, formId: "1ug05oS7X8bLkEl5QuqhTb-hLXF6-lgJZdhW6kWyqSpo", sheetUrl: "" },
-    { id: "pharm-4", programs: ["clinical-pharmacy"], level: "المستوى الرابع", order: 4, formId: "1k80ZZ8_U441OpdW3CT87jQdM6uhjRB3l5TE8RTSm-EM", sheetUrl: "" },
+    { id: "pharm-3", programs: ["clinical-pharmacy"], level: "المستوى الثالث", order: 3, formId: "1ug05oS7X8bLkEl5QuqhTb-hLXF6-lgJZdhW6kWyqSpo", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=576110900&single=true&output=csv" },
+    { id: "pharm-4", programs: ["clinical-pharmacy"], level: "المستوى الرابع", order: 4, formId: "1k80ZZ8_U441OpdW3CT87jQdM6uhjRB3l5TE8RTSm-EM", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=961260130&single=true&output=csv" },
 
     // التجارة (المستويات 1-3 مشتركة بين المحاسبة وإدارة الأعمال)
     { id: "com-1", programs: ["accounting", "business"], level: "المستوى الأول", order: 1, formId: "1bwHZ6K3FRLtkxMVt-J_FqaAE5WJrNJ7nkxkqjxtvNqg", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1741575006&single=true&output=csv" },
