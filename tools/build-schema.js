@@ -52,9 +52,11 @@ const DOCTOR = /^(ا\s*\.?\s*م?\s*\.?\s*د(\s*\.?\s*م)?|ام\s*\.?\s*د|د)\s*
 // طبيب/طبيبة = طبيب مقيم (هيئة معاونة)
 const TA = /^(م\s*\.?\s*م|م|ط|طبيبه?|معيده?|ا)\s*[\/.\s]/;
 
-function parsePerson(rawTitle) {
+function parsePerson(rawTitle, description) {
   let title = String(rawTitle).replace(/\s+/g, " ").trim();
-  let course = null;
+  // المادة: يا إما "المادة - الدكتور" في العنوان، يا إما وصف القسم لو سطر واحد قصير (فورمز الصيدلة)
+  const desc = String(description || "").trim();
+  let course = desc && desc.length <= 90 && !/\n/.test(desc) ? desc : null;
   const dash = title.lastIndexOf(" - ");
   if (dash > 0) { course = title.slice(0, dash).trim(); title = title.slice(dash + 3).trim(); }
   const n = norm(title);
@@ -82,7 +84,7 @@ function buildSchema(data) {
     const type = it[3], title = (it[1] || "").trim();
     const isComment = /ملاحظ|مقترح|تعليق/.test(norm(title));
     if ((type === 8 || type === 6) && title && !isComment) {
-      cur = { ...parsePerson(title), grids: [], comments: [] };
+      cur = { ...parsePerson(title, type === 8 ? it[2] : null), grids: [], comments: [] };
       sections.push(cur);
     } else if (type === 7 && cur) {
       cur.grids.push({
@@ -96,13 +98,40 @@ function buildSchema(data) {
   return { title: (data[3] || data[1][8] || "").trim(), sections: sections.filter((s) => s.grids.length) };
 }
 
+// الفورمز المقفولة مش بتظهر أسئلتها في لينك الإجابة؛ شكلها محفوظ في tools/closed-forms.json
+const CLOSED = fs.existsSync(path.join(__dirname, "closed-forms.json"))
+  ? JSON.parse(fs.readFileSync(path.join(__dirname, "closed-forms.json"), "utf8"))
+  : { forms: {} };
+function closedFormData(formId) {
+  const f = CLOSED.forms[formId];
+  if (!f) return null;
+  const items = [];
+  f.sections.forEach(([name, course]) => {
+    items.push([0, name, course, 8, null]);
+    items.push([0, "", null, 7, CLOSED.rows.map((r) => [0, null, null, [r]])]);
+    items.push([0, CLOSED.comment, null, 1, null]);
+  });
+  return [null, [null, items], null, f.title];
+}
+const PREVIOUS = fs.existsSync(path.join(root, "data/forms.json"))
+  ? JSON.parse(fs.readFileSync(path.join(root, "data/forms.json"), "utf8")).forms
+  : {};
+
 (async () => {
   const out = { generatedAt: new Date().toISOString(), criteria: CRITERIA.map(([l]) => l), forms: {} };
   const unknown = [];
   for (const f of CFG.forms) {
     process.stdout.write(`• ${f.id} ... `);
     try {
-      const schema = buildSchema(await fetchForm(f.formId));
+      let schema;
+      try {
+        schema = buildSchema(await fetchForm(f.formId));
+      } catch (e) {
+        const closed = closedFormData(f.formId);
+        if (closed) { schema = buildSchema(closed); process.stdout.write("(مقفول — من closed-forms.json) "); }
+        else if (PREVIOUS[f.formId]) { schema = PREVIOUS[f.formId]; process.stdout.write("(مقفول — النسخة السابقة) "); }
+        else throw e;
+      }
       out.forms[f.formId] = schema;
       schema.sections.filter((s) => s.role === "unknown").forEach((s) => unknown.push(`${f.id}: ${s.title}`));
       const bad = schema.sections.flatMap((s) => s.grids.flatMap((g) => g.rows)).filter((r) => r.c < 0);

@@ -1,0 +1,520 @@
+{
+  "_note": "شكل الفورمز المقفولة (مش ظاهرة في لينك الإجابة العام). كل قسم: [اللقب والاسم، المادة]. بعد كل اسم جريد الـ 20 بند وسؤال ملاحظات.",
+  "rows": [
+    "يوزع الخطة الدراسية في الأسبوع الأول",
+    "يعرض المادة العلمية في المحاضرات بشكل واضح ومترابط ومنظم.",
+    "يستغل وقت المحاضرات بشكل فعال.",
+    "مدى تمكن المدرس من المادة العلمية.",
+    "مدى التوافق بين مفردات الخطة وما تم تدريسه فعلا.",
+    "يلتزم بمواعيد محاضراته.",
+    "يحفز الطلبة على المشاركة وإبداء وجهات نظرهم حول المادة.",
+    "يبدي اهتمامًا بالتحصيل الدراسي للطلبة بشكل عام.",
+    "يتعامل مع الطلبة باحترام ضمن معايير المهنة وأدائها.",
+    "يستخدم أساليب تدريسية تستثير التفكير وحب الاستطلاع.",
+    "يستخدم في عرضه للمادة الأساليب التوضيحية والتطبيقية كلما يلزم.",
+    "ينوع في طرائق التدريس بما يلائم موضوع المادة وحاجات الطلبة.",
+    "يستخدم لغة واضحة ومفهومة في تدريس المادة.",
+    "محتوى الامتحانات متوافق مع شرح مفردات الخطة التدريسية للمادة.",
+    "يناقش مع الطلبة الإجابات الصحيحة للأسئلة التي تضمنها الامتحان.",
+    "ينوع في أساليب قياس تحصيل الطلبة وتقدير علاماتهم.",
+    "يلتزم المدرس بالساعات المكتبية ويشجع الطلبة على مراجعته خلالها.",
+    "مدى الدقة والعدالة في علاماته.",
+    "يحفز الطلبة للاطلاع على مراجع المادة المختلفة.",
+    "ينمي عند الطلبة اتجاهات وعادات وأخلاق حميدة."
+  ],
+  "comment": "ملاحظات او مقترحات تود اضافتها",
+  "forms": {
+    "1xwC6eZJ7mhPVKvSfqeScpv5pY5IOFqs0-vCTkWjyGfY": {
+      "title": "استبیان رأى الطلاب فى ھیئة التدريس والهيئة المعاونة برنامج الصيدلة الاكلينيكية (المستوى الأول)",
+      "sections": [
+        [
+          "أ.د. زكريا كامل عبد السميع",
+          "pharmaceutical organic chemistry 1"
+        ],
+        [
+          "أم.د. أمانى محمد حسنى غانم",
+          "pharmaceutical organic chemistry 1"
+        ],
+        [
+          "م . اسلام محمد لطفى",
+          "pharmaceutical organic chemistry 1"
+        ],
+        [
+          "م. ياسمين محمد محمد محمود",
+          "pharmaceutical organic chemistry 1"
+        ],
+        [
+          "م. ايمان عادل السيد",
+          "pharmaceutical organic chemistry 1"
+        ],
+        [
+          "م.  إسراء هدايه احمد كامل",
+          "pharmaceutical organic chemistry 1"
+        ],
+        [
+          "د. ولاء محمد الهادى كمال",
+          "IT"
+        ],
+        [
+          "م م. أحمد محمد مجدى",
+          "IT"
+        ],
+        [
+          "م. احمد رضا سعد",
+          "IT"
+        ],
+        [
+          "م. رنا محمد عبدالفتاح بندارى",
+          "IT"
+        ],
+        [
+          "م. ندى خالد محمد شورى",
+          "IT"
+        ],
+        [
+          "م. ميار ابراهيم محمد",
+          "IT"
+        ],
+        [
+          "م. احمد عادل محمد احمد",
+          "IT"
+        ],
+        [
+          "أ.د. ياسر عبد العزيز عامر",
+          "Math"
+        ],
+        [
+          "د. ياسمين أحمد ابراهيم محمد شرف",
+          "Social issues"
+        ],
+        [
+          "أ.د. محمود عبد الغنى محمد مهدى",
+          "Pharmacy orientation"
+        ],
+        [
+          "أ.د. هناء عبدالفتاح الغمرى",
+          "Pharmacy orientation"
+        ],
+        [
+          "د. أمل مجدى أبوالفتوح عبدالرازق",
+          "Pharmacy orientation"
+        ],
+        [
+          "أ.د. هشام عبد العزيز محمد هاشم",
+          "Pharmaceutical Analytical Chemistry I"
+        ],
+        [
+          "م م. عبد الناصر عبد الستار محمد",
+          "Pharmaceutical Analytical Chemistry I"
+        ],
+        [
+          "م. نرمين محمود محمد عبدالله",
+          "Pharmaceutical Analytical Chemistry I"
+        ],
+        [
+          "م. ايمان مختار موسى",
+          "Pharmaceutical Analytical Chemistry I"
+        ],
+        [
+          "م.م. اسماء محمد طه اسماعيل",
+          "Pharmaceutical Analytical Chemistry I"
+        ],
+        [
+          "أم.د. شيماء سامى محمود عثمان",
+          "Medical terminology"
+        ],
+        [
+          "أم.د. اسراء محمد نجيب زكريا",
+          "Medical terminology"
+        ],
+        [
+          "د. أحمد عبد السلام ادريس",
+          "English"
+        ],
+        [
+          "أم.د. إسلام مصطفى عبده",
+          "Medicinal plants"
+        ],
+        [
+          "د. اسماء محمد عرفة مرسى",
+          "Medicinal plants"
+        ],
+        [
+          "د. وفاء محمد اسماعيل",
+          "Medicinal plants"
+        ],
+        [
+          "م. هبة محمد عبدالسميع",
+          "Medicinal plants"
+        ],
+        [
+          "م. اسراء احمد محمد",
+          "Medicinal plants"
+        ],
+        [
+          "م. نورهان محمد مصطفى",
+          "Medicinal plants"
+        ],
+        [
+          "م. اسماء علاء زكى",
+          "Medicinal plants"
+        ]
+      ]
+    },
+    "11zImhKJlmiDkZ90IdYDtM7nxSJwTzjnWQ-Zu7c1CeXY": {
+      "title": "استبیان رأى الطلاب فى ھیئة التدريس والهيئة المعاونة برنامج الصيدلة الاكلينيكية (المستوى الثانى)",
+      "sections": [
+        [
+          "أ.د. زكريا كامل عبد السميع",
+          "pharmaceutical organic chemistry 3"
+        ],
+        [
+          "أم.د. أمانى محمد حسنى غانم",
+          "pharmaceutical organic chemistry 3"
+        ],
+        [
+          "د. اسراء عبدالله مصطفى سليم",
+          "pharmaceutical organic chemistry 3"
+        ],
+        [
+          "م. ايمان عادل السيد",
+          "pharmaceutical organic chemistry 3"
+        ],
+        [
+          "م. اسراء هداية احمد كامل",
+          "pharmaceutical organic chemistry 3"
+        ],
+        [
+          "م. ياسمين محمد محمد محمود",
+          "pharmaceutical organic chemistry 3"
+        ],
+        [
+          "م. سلمى حمدى محمود",
+          "pharmaceutical organic chemistry 3"
+        ],
+        [
+          "أم.د. مؤمن محمود عزالعرب",
+          "General Microbiology and immunology"
+        ],
+        [
+          "م. احمد رمضان محمد",
+          "General Microbiology and immunology"
+        ],
+        [
+          "م. محمود أشرف عبد الرازق",
+          "General Microbiology and immunology"
+        ],
+        [
+          "م. اسماء قطب السيد",
+          "General Microbiology and immunology"
+        ],
+        [
+          "م. ضحى مجدى عبدالعزيز",
+          "General Microbiology and immunology"
+        ],
+        [
+          "أ.د. هناء عبدالفتاح الغمرى",
+          "Pharmaceutics I"
+        ],
+        [
+          "د. امل مجدى ابوالفتوح عبدالرازق",
+          "Pharmaceutics I"
+        ],
+        [
+          "م عبدالعزيز ايمن عبدالعزيز",
+          "Pharmaceutics I"
+        ],
+        [
+          "م.م. محمود عمادالدين محمد",
+          "Pharmaceutics I"
+        ],
+        [
+          "م. اسماء السيد ابراهيم",
+          "Pharmaceutics I"
+        ],
+        [
+          "م. رحاب محمد فرج",
+          "Pharmaceutics I"
+        ],
+        [
+          "أم.د. رانيا على الرشيدى",
+          "Biochemistry I and Biophysics"
+        ],
+        [
+          "د. محمود السيد أحمد زاهر",
+          "Biochemistry I and Biophysics"
+        ],
+        [
+          "د. نورهان محمد بركة",
+          "Biochemistry I and Biophysics"
+        ],
+        [
+          "م. هاجر يسري محمد عبدالفتاح",
+          "Biochemistry I and Biophysics"
+        ],
+        [
+          "م. محمد ابراهيم الشرقاوى",
+          "Biochemistry I and Biophysics"
+        ],
+        [
+          "م. سهيلة احمد سعيد",
+          "Biochemistry I and Biophysics"
+        ],
+        [
+          "أ.د. هانى محمد عبد الملك الباسوسى",
+          "physiology and pathophysiology"
+        ],
+        [
+          "أ.د. منى فؤاد محمود عبدالعزيز",
+          "physiology and pathophysiology"
+        ],
+        [
+          "أم.د. شيماء سامى محمود عثمان",
+          "physiology and pathophysiology"
+        ],
+        [
+          "أم.د. اسراء محمد نجيب زكريا",
+          "physiology and pathophysiology"
+        ],
+        [
+          "م م. أمانى ابراهيم توفيق",
+          "physiology and pathophysiology"
+        ],
+        [
+          "م.م. احمد عادل محمد احمد",
+          "physiology and pathophysiology"
+        ],
+        [
+          "م. محمد علاء احمد",
+          "physiology and pathophysiology"
+        ],
+        [
+          "م. السيد محمود اسماعيل",
+          "physiology and pathophysiology"
+        ],
+        [
+          "أ.د. سحر عبد العزيز خاطر",
+          "Pharmacognosy I"
+        ],
+        [
+          "م. ايمان على محمد",
+          "Pharmacognosy I"
+        ],
+        [
+          "م. رضوى سامى محمد",
+          "Pharmacognosy I"
+        ],
+        [
+          "م. اسراء عصمت عمارة",
+          "Pharmacognosy I"
+        ],
+        [
+          "م. ماهينور احمد عميرة",
+          "Pharmacognosy I"
+        ]
+      ]
+    },
+    "1ug05oS7X8bLkEl5QuqhTb-hLXF6-lgJZdhW6kWyqSpo": {
+      "title": "2026-2027 المستوى الثالث الترم الأول",
+      "sections": [
+        [
+          "د. أحمد محمد جودة محمود",
+          "community pharmacy practice"
+        ],
+        [
+          "م م. أحمد محمد مجدى",
+          "community pharmacy practice"
+        ],
+        [
+          "م.م. محمد وجدي ابراهيم احمد",
+          "community pharmacy practice"
+        ],
+        [
+          "م. احمد رضا سعد طه",
+          "community pharmacy practice"
+        ],
+        [
+          "م. ندى محمود محمد شوقى",
+          "community pharmacy practice"
+        ],
+        [
+          "أ.د. هشام عبدالمنعم عباس",
+          "Pathology- Parasitology & virology"
+        ],
+        [
+          "أ.د. مؤمن محمود عزالعرب",
+          "Pathology- Parasitology & virology"
+        ],
+        [
+          "م. احمد رمضان محمد",
+          "Pathology- Parasitology & virology"
+        ],
+        [
+          "م. ضحى مجدى عبدالعزيز",
+          "Pathology- Parasitology & virology"
+        ],
+        [
+          "أ.د. محمود عبد الغنى محمد مهدى",
+          "Pharmaceutics III"
+        ],
+        [
+          "أم.د. شريف امام عبدالله",
+          "Pharmaceutics III"
+        ],
+        [
+          "م.م. احمد الشحات عبده",
+          "Pharmaceutics III"
+        ],
+        [
+          "م.م محمود عماد الدين محمد",
+          "Pharmaceutics III"
+        ],
+        [
+          "م. زينب سليم السيد",
+          "Pharmaceutics III"
+        ],
+        [
+          "م. ريهام سمير ابراهيم",
+          "Pharmaceutics III"
+        ],
+        [
+          "أ.د. هانى محمد عبد الملك الباسوسى",
+          "Pharmacology II"
+        ],
+        [
+          "أ.د. منى فؤاد محمود عبدالعزيز",
+          "Pharmacology II"
+        ],
+        [
+          "أ.م.د اسراء محمد نجيب زكريا",
+          "Pharmacology II"
+        ],
+        [
+          "م. السيد محمود اسماعيل",
+          "Pharmacology II"
+        ],
+        [
+          "م. عبدالعزيز ايمن عبدالعزيز",
+          "Pharmacology II"
+        ],
+        [
+          "م. زينب سليم السيد",
+          "Pharmacology II"
+        ],
+        [
+          "م. ريهام سمير ابراهيم",
+          "Pharmacology II"
+        ],
+        [
+          "أ.د. عزة محمد ابراهيم الشافعى",
+          "phytochemistry I"
+        ],
+        [
+          "أم.د. إسلام مصطفى عبده",
+          "phytochemistry I"
+        ],
+        [
+          "د. وفاء محمد اسماعيل موسى",
+          "phytochemistry I"
+        ],
+        [
+          "م.م. أسماء جمال على",
+          "phytochemistry I"
+        ],
+        [
+          "م. نورهان محمد مصطفى",
+          "phytochemistry I"
+        ],
+        [
+          "م. آيه كريم على",
+          "phytochemistry I"
+        ],
+        [
+          "م. مى مجدى شحاته",
+          "phytochemistry I"
+        ]
+      ]
+    },
+    "1k80ZZ8_U441OpdW3CT87jQdM6uhjRB3l5TE8RTSm-EM": {
+      "title": "2026-2027 المستوى الرابع الترم الأول",
+      "sections": [
+        [
+          "أ.د. عبدالله احمد الشنوانى",
+          "Medicinal Chemistry-1"
+        ],
+        [
+          "أم.د. أحمد سامى عبدالصمد",
+          "Medicinal Chemistry-1"
+        ],
+        [
+          "م.م. اميرة جمال فرج",
+          "Medicinal Chemistry-1"
+        ],
+        [
+          "م. اسماء جمال احمد محمد",
+          "Medicinal Chemistry-1"
+        ],
+        [
+          "أ.د. هبة محمد السيد ابراهيم",
+          "Quality control of Pharmaceuticals"
+        ],
+        [
+          "أم.د. ياسمين احمد ابراهيم شرف",
+          "Quality control of Pharmaceuticals"
+        ],
+        [
+          "م.م. اسماء محمد طه اسماعيل",
+          "Quality control of Pharmaceuticals"
+        ],
+        [
+          "م. ايمان مختار موسى",
+          "Quality control of Pharmaceuticals"
+        ],
+        [
+          "أم.د. شيماء سامى محمود",
+          "Drug information"
+        ],
+        [
+          "أم.د.نورا أحمد أحمد محمد حسن",
+          "Pharmacology-4"
+        ],
+        [
+          "أم.د. إسراء محمد نجيب زكريا",
+          "Pharmacology-4"
+        ],
+        [
+          "م.م. أمانى ابراهيم توفيق ابولبن",
+          "Pharmacology-4"
+        ],
+        [
+          "م.م. محمد علاء احمد",
+          "Pharmacology-4"
+        ],
+        [
+          "أم.د. منة محمد فيصل",
+          "Advanced drug delivery system, Biopharmaceutics & Pharmacokinetics"
+        ],
+        [
+          "م.م. احمد الشحات عبده",
+          "Biopharmaceutics & Pharmacokinetics"
+        ],
+        [
+          "م.م. محمود عمادالدين محمد",
+          "Biopharmaceutics & Pharmacokinetics"
+        ],
+        [
+          "م. زينب سليم السيد",
+          "Biopharmaceutics & Pharmacokinetics"
+        ],
+        [
+          "د. علياء عاطف طه",
+          "Medical microbiology"
+        ],
+        [
+          "م. أسماء قطب السيد",
+          "Medical microbiology"
+        ]
+      ]
+    }
+  }
+}
