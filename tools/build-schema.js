@@ -124,6 +124,7 @@ const PREVIOUS = fs.existsSync(path.join(root, "data/forms.json"))
   const out = { generatedAt: new Date().toISOString(), criteria: CRITERIA.map(([l]) => l), forms: {} };
   const unknown = [];
   for (const f of CFG.forms) {
+    if (f.dataUrl) continue; // مش Google Form (الطب البشري — tools/build-medicine.js)
     process.stdout.write(`• ${f.id} ... `);
     try {
       let schema;

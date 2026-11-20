@@ -35,7 +35,9 @@
 
   const findFac = (id) => CFG.faculties.find((f) => f.id === id);
   const formsOf = (progId) => CFG.forms.filter((f) => f.programs.includes(progId)).sort((a, b) => a.order - b.order);
-  const hasSource = (f) => DEMO || !!f.sheetUrl;
+  // dataUrl: نتيجة جاهزة من ملف في المشروع (الطب البشري — استبيانات LectaSync مش Google Forms)
+  const hasSource = (f) => DEMO || !!f.sheetUrl || !!f.dataUrl;
+  const MODULE_LABELS = ["ضعيف", "مقبول", "جيد", "جيد جدًا", "ممتاز"];
 
   /* ---------- Data ---------- */
   // One request per form at a time: pages ask for the same form several times while rendering.
@@ -53,6 +55,11 @@
   async function loadFormNow(form) {
     const schema = SCHEMA.forms[form.formId];
     try {
+      if (form.dataUrl) {
+        const res = await fetchWithRetry(form.dataUrl);
+        if (!res.ok) throw new Error("تعذر قراءة ملف البيانات (" + res.status + ")");
+        return { analysis: await res.json() };
+      }
       if (!schema) return { analysis: null, error: "شكل الفورم مش موجود — شغّل tools/build-schema.js" };
       if (!hasSource(form)) return { analysis: null };
       const { headers, rows } = DEMO ? demoData(form, schema) : await fetchSheet(form.sheetUrl);
@@ -107,7 +114,7 @@
     const S = {
       forms: entries, responses: 0, active: 0, lastResponse: null,
       all: emptyStats(), doctor: emptyStats(), ta: emptyStats(),
-      staff: new Map(), courses: [], levels: [], notTaught: 0,
+      staff: new Map(), courses: [], levels: [], notTaught: 0, modules: [],
     };
     for (const e of entries) {
       const a = e.analysis;
@@ -132,6 +139,7 @@
         if (s.course) S.courses.push({ course: s.course, name: s.name, staffId: k, level: e.form.level, stats: s.stats });
       }
       S.levels.push(lv);
+      if (a.module) S.modules.push({ ...a.module, level: e.form.level });
     }
     S.staffList = [...S.staff.values()].filter((p) => p.stats.count).sort((a, b) => pct(b.stats) - pct(a.stats));
     return S;
@@ -281,7 +289,7 @@
     const hasCourses = S.courses.length > 0;
     const commentsCount = S.staffList.reduce((n, x) => n + x.comments.length, 0);
     const hasTas = !S.all.count || S.staffList.some((x) => x.role === "ta");
-    const tabs = [["overview", "نظرة عامة"], ["doctors", "أعضاء هيئة التدريس"], ...(hasTas ? [["tas", "الهيئة المعاونة"]] : []), ...(hasCourses ? [["courses", "المقررات"]] : []), ["criteria", "بنود التقييم"], ["comments", `آراء الطلاب${commentsCount ? `<span class="count">${fmt(commentsCount)}</span>` : ""}`]];
+    const tabs = [["overview", "نظرة عامة"], ["doctors", "أعضاء هيئة التدريس"], ...(hasTas ? [["tas", "الهيئة المعاونة"]] : []), ...(hasCourses ? [["courses", "المقررات"]] : []), ...(S.modules.length ? [["modules", "تقييم المقرر"]] : []), ["criteria", "بنود التقييم"], ["comments", `آراء الطلاب${commentsCount ? `<span class="count">${fmt(commentsCount)}</span>` : ""}`]];
     const tab = tabs.some(([k]) => k === route.tab) ? route.tab : "overview";
 
     let body;
@@ -290,6 +298,7 @@
     else if (tab === "doctors") body = staffTab(S, "doctor");
     else if (tab === "tas") body = staffTab(S, "ta");
     else if (tab === "courses") body = coursesTab(S);
+    else if (tab === "modules") body = modulesTab(S);
     else if (tab === "criteria") body = criteriaTab(S);
     else body = commentsTab(S);
 
@@ -393,6 +402,26 @@
       ${list.map((c, i) => `<tr class="clickable" data-staff="${esc(c.staffId)}"><td class="rank">${fmt(i + 1)}</td><td><b>${esc(c.course)}</b></td><td>${esc(c.name)}</td><td class="muted small">${esc(c.level)}</td>
         <td>${scoreBar(pct(c.stats))}</td><td>${distBar(c.stats.dist)}</td><td class="num">${fmt(c.stats.respondents)}</td></tr>`).join("")}
       </tbody></table></div>`;
+  }
+
+  // تقييم المقرر نفسه (استبيان منفصل عن تقييم الدكاترة، مقياسه ممتاز ← ضعيف)
+  function modulesTab(S) {
+    const list = [...S.modules].sort((a, b) => pct(b.all) - pct(a.all));
+    const legendM = `<div class="legend">${MODULE_LABELS.map((l, i) => `<span><i style="background:${DIST_COLORS[i]}"></i>${l}</span>`).join("")}</div>`;
+    const comments = (title, arr) => arr.length ? `<h3 style="margin-top:18px">${title} <span class="count">${fmt(arr.length)}</span></h3>
+      <div class="comments">${arr.map((t) => `<div class="comment">${esc(t)}</div>`).join("")}</div>` : "";
+    return `<div class="card glass"><h3>تقييم المقررات</h3><div class="sub">استبيان منفصل عن تقييم أعضاء هيئة التدريس: الطالب بيقيّم المقرر نفسه (الأهداف، المحتوى، الكتاب، الجدول) • مش داخل في الرضا العام</div>${legendM}
+      <table class="mtable"><thead><tr><th>#</th><th>المقرر</th><th>المستوى</th><th>التقييم</th><th>توزيع الإجابات</th><th>طلاب</th></tr></thead><tbody>
+      ${list.map((m, i) => `<tr><td class="rank">${fmt(i + 1)}</td><td><b>${esc(m.name)}</b></td><td class="muted small">${esc(m.level)}</td><td>${scoreBar(pct(m.all))}</td><td>${distBar(m.all.dist)}</td><td class="num">${fmt(m.respondents)}</td></tr>`).join("")}
+      </tbody></table></div>
+      ${list.map((m) => `<div class="card glass">
+        <div class="card-head"><div><h3>${esc(m.name)}</h3><div class="sub">${esc(m.level)} • ${fmt(m.respondents)} طالب • تقييم ${fmtPct(pct(m.all))}</div></div></div>
+        <table class="mtable"><tbody>${m.items.map((it) => `<tr><td>${esc(it.text)}</td><td style="width:32%">${scoreBar(pct(it))}</td><td style="width:22%">${distBar(it.dist)}</td></tr>`).join("")}
+        ${m.advising ? `<tr><td>الرضا عن الإرشاد الأكاديمي</td><td>${scoreBar(pct(m.advising))}</td><td>${distBar(m.advising.dist)}</td></tr>` : ""}</tbody></table>
+        <div class="grid grid-2">
+          <div>${comments("مقترحات لتحسين المقرر", m.comments.course)}</div>
+          <div>${comments("مقترحات لتحسين الإرشاد الأكاديمي", m.comments.advising)}</div>
+        </div></div>`).join("")}`;
   }
 
   function critList(st) {

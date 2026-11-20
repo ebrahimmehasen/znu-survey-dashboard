@@ -38,6 +38,10 @@ window.DASHBOARD_CONFIG = {
       programs: [{ id: "dentistry", nameAr: "طب وجراحة الفم والأسنان", nameEn: "Dentistry" }],
     },
     {
+      id: "medicine", nameAr: "كلية الطب البشري", nameEn: "Faculty of Medicine", icon: "🩻",
+      programs: [{ id: "medicine", nameAr: "الطب والجراحة", nameEn: "Medicine & Surgery" }],
+    },
+    {
       id: "pharmacy", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy", icon: "💊",
       programs: [{ id: "clinical-pharmacy", nameAr: "الصيدلة الإكلينيكية", nameEn: "Clinical Pharmacy" }],
     },
@@ -76,6 +80,15 @@ window.DASHBOARD_CONFIG = {
     { id: "dent-3", programs: ["dentistry"], level: "الفرقة الثالثة", order: 3, formId: "11V2h_S8Ade0OZ7x-oBEXpRga93vkwA1i26_oJk8nzNY", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=2053664040&single=true&output=csv" },
     { id: "dent-4", programs: ["dentistry"], level: "الفرقة الرابعة", order: 4, formId: "1xhK_dgQUIcO9ol1zzrHhGn8AZVmnnAKr2fSK5Dgxzsk", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=757745353&single=true&output=csv" },
     { id: "dent-5", programs: ["dentistry"], level: "الفرقة الخامسة", order: 5, formId: "146exCUKU2kMazlTOVbGKUbympyBKGcnZ5Wd6kWEEe4w", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=2112333678&single=true&output=csv" },
+
+    // الطب البشري: الاستبيانات على LectaSync (مش Google Forms)، فالنتيجة ملف جاهز في data/medicine
+    // بيتعمل بـ tools/build-medicine.js من تصدير الردود. formId هنا مجرد مفتاح (رقم استبيان الدكاترة على LectaSync).
+    { id: "med-1", programs: ["medicine"], level: "المستوى الأول", order: 1, formId: "lectasync-9", dataUrl: "data/medicine/med-1.json" },
+    { id: "med-2", programs: ["medicine"], level: "المستوى الثاني", order: 2, formId: "lectasync-11", dataUrl: "data/medicine/med-2.json" },
+    { id: "med-3", programs: ["medicine"], level: "المستوى الثالث", order: 3, formId: "lectasync-4", dataUrl: "data/medicine/med-3.json" },
+    { id: "med-4-medicine", programs: ["medicine"], level: "المستوى الرابع — Medicine I", order: 4, formId: "lectasync-18", dataUrl: "data/medicine/med-4-medicine.json" },
+    { id: "med-4-pediatrics", programs: ["medicine"], level: "المستوى الرابع — Pediatrics", order: 4.5, formId: "lectasync-16", dataUrl: "data/medicine/med-4-pediatrics.json" },
+    { id: "med-5", programs: ["medicine"], level: "المستوى الخامس", order: 5, formId: "lectasync-14", dataUrl: "data/medicine/med-5.json" },
 
     // الصيدلة
     { id: "pharm-1", programs: ["clinical-pharmacy"], level: "المستوى الأول", order: 1, formId: "1xwC6eZJ7mhPVKvSfqeScpv5pY5IOFqs0-vCTkWjyGfY", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1270752952&single=true&output=csv" },
