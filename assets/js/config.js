@@ -42,6 +42,10 @@ window.DASHBOARD_CONFIG = {
       programs: [{ id: "clinical-pharmacy", nameAr: "الصيدلة الإكلينيكية", nameEn: "Clinical Pharmacy" }],
     },
     {
+      id: "nursing", nameAr: "كلية التمريض", nameEn: "Faculty of Nursing", icon: "🩺",
+      programs: [{ id: "nursing", nameAr: "التمريض", nameEn: "Nursing" }],
+    },
+    {
       id: "commerce", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce", icon: "📊",
       programs: [
         { id: "accounting", nameAr: "المحاسبة", nameEn: "Accounting" },
@@ -78,6 +82,12 @@ window.DASHBOARD_CONFIG = {
     { id: "pharm-2", programs: ["clinical-pharmacy"], level: "المستوى الثاني", order: 2, formId: "11zImhKJlmiDkZ90IdYDtM7nxSJwTzjnWQ-Zu7c1CeXY", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1359291224&single=true&output=csv" },
     { id: "pharm-3", programs: ["clinical-pharmacy"], level: "المستوى الثالث", order: 3, formId: "1ug05oS7X8bLkEl5QuqhTb-hLXF6-lgJZdhW6kWyqSpo", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=576110900&single=true&output=csv" },
     { id: "pharm-4", programs: ["clinical-pharmacy"], level: "المستوى الرابع", order: 4, formId: "1k80ZZ8_U441OpdW3CT87jQdM6uhjRB3l5TE8RTSm-EM", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=961260130&single=true&output=csv" },
+
+    // التمريض
+    { id: "nurs-1", programs: ["nursing"], level: "المستوى الأول", order: 1, formId: "1whKwIi7SXirr-srUdeJaNw97JFDaN0gFWdF95KzTjjg", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1387576736&single=true&output=csv" },
+    { id: "nurs-2", programs: ["nursing"], level: "المستوى الثاني", order: 2, formId: "1NpRpCCkKiNAJD2aNEoaK5JYmvbq-iGo4c9_9dnpO_1I", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1090775901&single=true&output=csv" },
+    { id: "nurs-3", programs: ["nursing"], level: "المستوى الثالث", order: 3, formId: "15WBb_xVF9GMjJV0jhdcYNMkzjwLRwvWmTgtbqKCPfZk", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=2017067935&single=true&output=csv" },
+    { id: "nurs-4", programs: ["nursing"], level: "المستوى الرابع", order: 4, formId: "1VaZOs5ybi2eAM0Zr21y9VKVFd39UrIndqvmnMas3GFI", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1902641503&single=true&output=csv" },
 
     // التجارة (المستويات 1-3 مشتركة بين المحاسبة وإدارة الأعمال)
     { id: "com-1", programs: ["accounting", "business"], level: "المستوى الأول", order: 1, formId: "1bwHZ6K3FRLtkxMVt-J_FqaAE5WJrNJ7nkxkqjxtvNqg", sheetUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSR20n7KRcF6cT1jMev-23FEUI-_kQFXPRlx9FIz_I-e8bsg_tQXQ38nOIUsYShjHMz_Q9LMuicHxRC/pub?gid=1741575006&single=true&output=csv" },
