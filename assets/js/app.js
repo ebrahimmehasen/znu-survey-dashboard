@@ -89,7 +89,8 @@
     if (!res.ok) throw new Error("تعذر قراءة الشيت (" + res.status + ")");
     const text = await res.text();
     // The published copy answers "Loading..." while its imported data recalculates.
-    if (/^\s*Loading\.*\s*$/i.test(text)) {
+    // (one "Loading..." cell per IMPORTRANGE, e.g. "Loading...,Loading..." for the pharmacy tabs)
+    if (/^\s*"?Loading/i.test(text)) {
       if (attempt >= 4) throw new Error("الشيت بيتحدث دلوقتي — جرّب ↻ تحديث بعد دقيقة");
       await new Promise((r) => setTimeout(r, 3000 * attempt));
       return fetchSheet(url, attempt + 1);
