@@ -30,8 +30,9 @@
   Chart.defaults.borderColor = "rgba(255,255,255,.12)";
 
   $("#menuBtn").onclick = () => $("#sidebar").classList.toggle("open");
-  $("#refreshBtn").onclick = () => { cache.clear(); render(); };
-  if (CFG.refreshMinutes > 0) setInterval(() => { if (!$("#modal")) { cache.clear(); render(true); } }, CFG.refreshMinutes * 60000);
+  $("#refreshBtn").onclick = () => refreshAll(true);
+  // التحديث التلقائي بيجيب البيانات الجديدة في الخلفية والصفحة شغالة بالقديمة، ومش بيشتغل والتاب مقفول
+  if (CFG.refreshMinutes > 0) setInterval(() => { if (!document.hidden) refreshAll(false); }, CFG.refreshMinutes * 60000);
 
   const findFac = (id) => CFG.faculties.find((f) => f.id === id);
   const formsOf = (progId) => CFG.forms.filter((f) => f.programs.includes(progId)).sort((a, b) => a.order - b.order);
@@ -40,10 +41,30 @@
   const MODULE_LABELS = ["ضعيف", "مقبول", "جيد", "جيد جدًا", "ممتاز"];
 
   /* ---------- Data ---------- */
+  // نسخة من آخر بيانات اتحملت بتتحفظ في المتصفح (Cache Storage)، فالزيارة الجاية بتفتح على طول
+  // بالنسخة دي وبعدين البيانات الجديدة بتتجاب في الخلفية.
+  const SAVED = "znu-survey-data-v1";
+  const canSave = !DEMO && "caches" in window;
+  async function saveCopy(url, text) {
+    if (!canSave) return;
+    try { await (await caches.open(SAVED)).put(url, new Response(text)); } catch {}
+  }
+  async function readCopy(url) {
+    if (!canSave) return null;
+    try { const r = await (await caches.open(SAVED)).match(url); return r ? await r.text() : null; } catch { return null; }
+  }
+
+  let usedSavedCopy = false; // في فورم اتعرض من النسخة المحفوظة → لازم نحدّث في الخلفية
+  const progress = { done: 0, total: 0 };
+
   // One request per form at a time: pages ask for the same form several times while rendering.
   function loadForm(form) {
     if (!cache.has(form.formId)) {
-      const p = loadFormNow(form).then((entry) => {
+      progress.total++;
+      const p = loadFormNow(form, { allowSaved: true }).then((entry) => {
+        progress.done++;
+        const el = $("#loadProgress");
+        if (el) el.textContent = `${fmt(progress.done)} من ${fmt(progress.total)}`;
         if (entry.error) cache.delete(form.formId); // retry on the next refresh instead of keeping the failure
         return entry;
       });
@@ -52,7 +73,7 @@
     return cache.get(form.formId);
   }
 
-  async function loadFormNow(form) {
+  async function loadFormNow(form, { allowSaved = false } = {}) {
     const schema = SCHEMA.forms[form.formId];
     try {
       if (form.dataUrl) {
@@ -62,7 +83,10 @@
       }
       if (!schema) return { analysis: null, error: "شكل الفورم مش موجود — شغّل tools/build-schema.js" };
       if (!hasSource(form)) return { analysis: null };
-      const { headers, rows } = DEMO ? demoData(form, schema) : await fetchSheet(form.sheetUrl);
+      if (DEMO) { const d = demoData(form, schema); return { analysis: analyzeForm(schema, d.headers, d.rows, { excludeNotTaught: true }) }; }
+      const saved = allowSaved ? await readCopy(form.sheetUrl) : null;
+      if (saved) usedSavedCopy = true;
+      const { headers, rows } = saved ? parseCsv(saved) : await fetchSheet(form.sheetUrl);
       return { analysis: analyzeForm(schema, headers, rows, { excludeNotTaught: true }) };
     } catch (e) {
       console.error(form.id, e);
@@ -70,10 +94,34 @@
     }
   }
 
-  async function fetchWithRetry(url, tries = 3) {
+  // بيجيب كل الفورمز المعروضة من جديد في الخلفية، والصفحة فاضلة شغالة بالبيانات القديمة لحد ما يخلص
+  let refreshing = null;
+  function refreshAll(manual) {
+    if (refreshing) return refreshing;
+    const btn = $("#refreshBtn");
+    btn.disabled = true;
+    btn.classList.add("busy");
+    $("#updated").textContent = "↻ جاري تحديث البيانات…";
+    const forms = [...new Map(CFG.forms.filter(hasSource).map((f) => [f.formId, f])).values()];
+    refreshing = Promise.all(forms.map(async (f) => {
+      const entry = await loadFormNow(f);
+      // لو التحديث فشل نسيب القديم بدل ما الصفحة تفضى
+      if (!entry.error || !cache.has(f.formId)) cache.set(f.formId, Promise.resolve(entry));
+    })).finally(() => {
+      usedSavedCopy = false;
+      refreshing = null;
+      btn.disabled = false;
+      btn.classList.remove("busy");
+      if (!$("#modal") || manual) return render(true);
+      $("#updated").textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+    });
+    return refreshing;
+  }
+
+  async function fetchWithRetry(url, tries = 2) {
     for (let i = 1; ; i++) {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 20000);
+      const timer = setTimeout(() => ctrl.abort(), 15000);
       try {
         const res = await fetch(url + (url.includes("?") ? "&" : "?") + "_=" + Date.now(), { signal: ctrl.signal });
         if (res.status >= 500 && i < tries) throw new Error("server " + res.status);
@@ -103,6 +151,11 @@
       return fetchSheet(url, attempt + 1);
     }
     if (/^\s*<!doctype html|<html/i.test(text)) throw new Error("الشيت مش متاح للعامة — اعمله Share لـ Anyone with the link");
+    saveCopy(url, text);
+    return parseCsv(text);
+  }
+
+  function parseCsv(text) {
     const data = Papa.parse(text, { skipEmptyLines: true }).data;
     return { headers: data[0] || [], rows: data.slice(1) };
   }
@@ -177,17 +230,35 @@
   }
 
   /* ---------- Rendering helpers ---------- */
+  const routeForms = (route) =>
+    route.view === "home" ? CFG.forms
+      : route.view === "fac" ? findFac(route.fac).programs.flatMap((p) => formsOf(p.id))
+      : formsOf(route.prog);
+
+  // كل render ليه رقم: لو المستخدم راح صفحة تانية والأولى لسه بتحمّل، الأولى ماترسمش فوق التانية
+  let renderSeq = 0;
   async function render(silent) {
+    const seq = ++renderSeq;
     const route = parseRoute();
     if (!silent && $("#modal")) $("#modal .close").click();
     buildNav(route);
+    if (!silent) {
+      charts.forEach((c) => c.destroy());
+      charts = [];
+      $("#content").innerHTML = `<div class="glass loader"><div class="spinner"></div>جاري تحميل البيانات… <span id="loadProgress"></span></div>`;
+    }
+    await Promise.all(routeForms(route).map(loadForm)); // البيانات الأول (من الكاش لو موجودة)
+    if (seq !== renderSeq) return;
+    const scroll = silent ? window.scrollY : 0;
     charts.forEach((c) => c.destroy());
     charts = [];
-    if (!silent) $("#content").innerHTML = `<div class="glass loader"><div class="spinner"></div>جاري تحميل البيانات…</div>`;
     if (route.view === "home") await renderHome();
     else if (route.view === "fac") await renderFaculty(findFac(route.fac));
     else await renderProgram(findFac(route.fac), route);
-    $("#updated").textContent = "آخر تحديث: " + new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+    if (silent) window.scrollTo(0, scroll);
+    if (!refreshing) $("#updated").textContent = (usedSavedCopy ? "بيانات محفوظة • " : "آخر تحديث: ") + new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+    // الصفحة اتفتحت من النسخة المحفوظة؟ هات الجديد في الخلفية
+    if (usedSavedCopy && !refreshing) refreshAll(false);
   }
 
   function setTitle(t, sub) {
