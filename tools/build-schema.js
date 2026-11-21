@@ -60,6 +60,8 @@ function parsePerson(rawTitle, description) {
   // فورمز التمريض: "المقرر: <الاسم> — كود: <الكود>" سطر لكل مقرر
   const listed = [...desc.matchAll(/المقرر\s*:\s*(.+?)\s*(?:[—–-]\s*كود\s*:.*)?$/gm)].map((m) => m[1].trim());
   if (listed.length) course = [...new Set(listed)].join("، ");
+  // فورمز الحاسبات: "مقرر برمجة 1" / "مقرر / تأهيلي الرياضيات"
+  if (course) course = course.replace(/^مقرر(?=[^\s\/:\-–])/, "").replace(/(^|\s)مقرر(\s*[\/:\-–])?(?=\s|$)/g, " ").replace(/^1 (.+)$/, "$1 1").replace(/\s+/g, " ").trim() || null;
   const dash = title.lastIndexOf(" - ");
   if (dash > 0) { course = title.slice(0, dash).trim(); title = title.slice(dash + 3).trim(); }
   const n = norm(title);
