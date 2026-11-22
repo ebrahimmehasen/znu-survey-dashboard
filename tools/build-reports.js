@@ -20,7 +20,6 @@ vm.runInNewContext(fs.readFileSync(path.join(root, "assets/js/analyze.js"), "utf
 const CFG = ctx.window.DASHBOARD_CONFIG;
 const { analyzeForm } = ctx.window.SurveyAnalyzer;
 const SCHEMA = JSON.parse(fs.readFileSync(path.join(root, "data/forms.json"), "utf8"));
-const LOGO = "data:image/webp;base64," + fs.readFileSync(path.join(root, "assets/img/logo.webp")).toString("base64");
 
 const BROWSERS = [
   "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -103,30 +102,10 @@ const LABELS = ["غير موافق تمامًا", "غير موافق", "إلى �
 const TERM = "بالفصل الدراسي الأول للعام الأكاديمي 2026-2027";
 const TITLE = "تقرير عن نتيجة فحص استبيانات قياس رضا الطلاب عن أداء أعضاء هيئة التدريس والهيئة المعاونة";
 
-// علامة ZNU زي اللي في ترويسة الجامعة: Z و N جنب بعض و U تحت الـ N
-const ZNU = `<svg class="znu" viewBox="0 0 120 120" aria-hidden="true">
-  <path d="M6 30 H52 L18 86 H58 V98 H2 L36 42 H6 Z" fill="#333"/>
-  <path d="M62 8 H74 L100 50 V8 H112 V70 H100 L74 28 V58 H62 Z" fill="#333"/>
-  <path d="M62 64 H74 V92 Q74 104 87 104 Q100 104 100 92 V76 H112 V92 Q112 116 87 116 Q62 116 62 92 Z" fill="#333"/>
-</svg>`;
-const ICON = {
-  pin: `<svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="none" stroke="#333" stroke-width="1.6"/></svg>`,
-  fb: `<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="4" fill="#333"/><path d="M13.5 20v-6.5h2.2l.4-2.6h-2.6V9.3c0-.8.3-1.3 1.4-1.3h1.3V5.7c-.3 0-1.1-.1-2-.1-2 0-3.3 1.2-3.3 3.4v1.9H8.7v2.6h2.2V20z" fill="#fff"/></svg>`,
-  www: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="none" stroke="#333" stroke-width="1.6"/><path d="M2.5 12h19M12 2.5c3 3 3 16 0 19M12 2.5c-3 3-3 16 0 19" fill="none" stroke="#333" stroke-width="1.3"/></svg>`,
-  phone: `<svg viewBox="0 0 24 24"><path d="M6.6 3.5l2.6 3.7-1.7 2.1a12 12 0 0 0 7.2 7.2l2.1-1.7 3.7 2.6-1.4 3.1C10.5 20 4 13.5 3.5 5z" fill="none" stroke="#333" stroke-width="1.5"/></svg>`,
-  at: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="#333" stroke-width="1.6"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1" fill="none" stroke="#333" stroke-width="1.6"/></svg>`,
-};
-
-const header = `<div class="hdr">
-  <img class="seal" src="${LOGO}" alt="">
-  <div class="brand">${ZNU}<div class="names"><div class="ar">جامعة الزقازيق الأهلية</div><div class="bar"></div><div class="en">Zagazig National University</div></div></div>
-</div>`;
-const footer = `<div class="ftr">
-  <div class="addr"><span class="ic">${ICON.pin}</span><div>مدينة العاشر من رمضان، الطريق الموازي لطريق مصر<br>إسماعيلية الصحراوي والطريق الدائري الإقليمي وطريق<br>بلبيس العاشر – محافظة الشرقية<br>جمهورية مصر العربية</div></div>
-  <div class="links"><div><span class="ic">${ICON.fb}</span><span class="u">https://www.facebook.com/ZagazigNational<br>University/?locale=ar_AR</span></div><div><span class="ic">${ICON.www}</span><b>Znu.edu.eg</b></div></div>
-  <div class="contact"><span class="ic">${ICON.phone}</span><span class="ic">${ICON.at}</span></div>
-</div>
-<img class="wm" src="${LOGO}" alt="">`;
+// ترويسة الجامعة الرسمية (من ZNU_Temp.docx، متحولة لرمادي عشان الطباعة أبيض وأسود): خلفية كل صفحة
+const LETTERHEAD = "data:image/png;base64," + fs.readFileSync(path.join(__dirname, "report-letterhead.png")).toString("base64");
+const header = `<img class="lh" src="${LETTERHEAD}" alt="">`;
+const footer = "";
 
 function page(inner, cls = "") {
   // جدول بيكرر مساحة الهيدر والفوتر في كل صفحة مطبوعة لو المستوى طويل
@@ -174,13 +153,13 @@ function levelPage(fac, prog, L) {
       وبلغت نسبة الرضا بطريقة وحدة ضمان الجودة (الإجابات "إلى حد ما" فأعلى): <b>${fp(quality(L.all))}</b>.</p>
     ${distTable(L.all)}
     ${criteriaTable(L.all)}
-    <p>وفيما يلي نسبة رضا الطلاب عن أداء كل عضو من أعضاء هيئة التدريس والهيئة المعاونة المشاركين في تدريس المقررات بالمستوى:</p>
+    <p class="intro">وفيما يلي نسبة رضا الطلاب عن أداء كل عضو من أعضاء هيئة التدريس والهيئة المعاونة المشاركين في تدريس المقررات بالمستوى:</p>
     ${memberTable("أعضاء هيئة التدريس", L.doctors)}
     ${memberTable("الهيئة المعاونة", L.tas)}
     ${L.module ? `<p class="note">تقييم الطلاب للمقرر نفسه (${esc(L.module.name)}): ${score(L.module.all)} من ${L.module.respondents} طالب، وهو استبيان منفصل غير داخل في نسبة الرضا الإجمالية.</p>` : ""}
     <p class="note">التقييم من 5 = متوسط درجات الطلاب (موافق تمامًا = 5، موافق = 4، إلى حد ما = 3، غير موافق = 2، غير موافق تمامًا = 1)، ونسبة الرضا = التقييم ÷ 5 × 100.
       ${L.notTaught ? `تم استبعاد ${L.notTaught} تقييم لطلاب أفادوا بأن العضو لا يقوم بالتدريس لهم.` : ""}</p>
-  `, "lvl" + (L.doctors.length + L.tas.length > 40 ? " dense xdense" : L.doctors.length + L.tas.length > 18 ? " dense" : ""));
+  `, "lvl" + (L.doctors.length + L.tas.length > 48 ? " dense xdense xxdense" : L.doctors.length + L.tas.length > 34 ? " dense xdense" : L.doctors.length + L.tas.length > 15 ? " dense" : ""));
 }
 
 function programPage(fac, prog, levels) {
@@ -216,29 +195,11 @@ const CSS = `
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body { font-family: "Simplified Arabic", "Traditional Arabic", "Amiri", "Times New Roman", serif; color: #000; font-size: 12pt; line-height: 1.5; direction: rtl; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.hdr { position: fixed; top: 0; left: 0; right: 0; height: 33mm; padding: 7mm 16mm 0; display: flex; align-items: center; justify-content: space-between; }
-.hdr::after { content: ""; position: absolute; left: 12mm; right: 12mm; bottom: 0; border-bottom: 2.2mm solid #3a3a3a; }
-.seal { height: 23mm; width: 23mm; object-fit: contain; filter: grayscale(1) contrast(1.15); }
-.brand { display: flex; align-items: center; gap: 3mm; direction: ltr; }
-.znu { height: 21mm; width: 21mm; }
-.names { direction: rtl; font-family: "Cairo", "Segoe UI", Tahoma, sans-serif; color: #333; }
-.names .ar { font-size: 19pt; font-weight: 700; line-height: 1.15; text-align: right; }
-.names .bar { height: 1.4mm; background: #444; margin: .8mm 0 1mm; }
-.names .en { font-size: 11.5pt; font-weight: 700; direction: ltr; text-align: left; letter-spacing: .1px; }
-.ftr { position: fixed; bottom: 0; left: 0; right: 0; height: 21mm; padding: 2mm 14mm 0; display: flex; align-items: flex-start; justify-content: space-between; font-size: 7.6pt; line-height: 1.45; color: #222; }
-.ftr .ic { display: inline-block; width: 5mm; height: 5mm; vertical-align: middle; }
-.ftr .ic svg { width: 100%; height: 100%; }
-.ftr .addr { display: flex; gap: 2mm; align-items: flex-start; text-align: center; }
-.ftr .links { direction: ltr; display: flex; flex-direction: column; gap: 1mm; font-family: "Times New Roman", serif; }
-.ftr .links div { display: flex; align-items: center; gap: 1.5mm; }
-.ftr .links .u { text-decoration: underline; font-size: 7pt; line-height: 1.2; }
-.ftr .links b { font-size: 9.5pt; }
-.ftr .contact { display: flex; flex-direction: column; gap: 2mm; }
-.wm { position: fixed; top: 50%; left: 50%; width: 120mm; height: 120mm; margin: -50mm 0 0 -60mm; opacity: .06; filter: grayscale(1); z-index: -1; }
+.lh { position: fixed; top: 0; left: 0; width: 210mm; height: 297mm; z-index: -1; }
 table.page { width: 100%; border-collapse: collapse; page-break-after: always; }
 table.page:last-child { page-break-after: auto; }
-.hs { height: 36mm; } .fs { height: 22mm; }
-td.body { padding: 0 16mm; vertical-align: top; }
+.hs { height: 34mm; } .fs { height: 31mm; }
+td.body { padding: 0 15mm 0 17mm; vertical-align: top; }
 .title { text-align: center; margin: 0 0 3mm; }
 h1 { font-size: 15pt; font-weight: 700; margin: 0; line-height: 1.4; }
 h2 { font-size: 14pt; font-weight: 700; margin: 0; }
@@ -258,8 +219,8 @@ table.dist th, table.dist td { font-size: 10.5pt; }
 table.crit td { font-size: 10.5pt; }
 .note { font-size: 9.5pt; line-height: 1.45; margin-top: 2mm; }
 /* صفحة المستوى: أصغر عشان المستوى كله يدخل في صفحة واحدة */
-.lvl { font-size: 11pt; line-height: 1.4; }
-.lvl h1 { font-size: 13.5pt; } .lvl h2 { font-size: 12.5pt; }
+.lvl { font-size: 10.5pt; line-height: 1.35; }
+.lvl h1 { font-size: 13pt; } .lvl h2 { font-size: 12pt; }
 .lvl p { margin-bottom: 1.2mm; } .lvl p.lead { margin: 2mm 0 1mm; font-size: 11.5pt; }
 .lvl table.grid { font-size: 10pt; margin: .5mm 0 1.8mm; }
 .lvl table.grid th, .lvl table.grid td { padding: .35mm 1.4mm; }
@@ -273,7 +234,8 @@ table.crit td { font-size: 10.5pt; }
 .lvl.dense table.grid td.course { font-size: 7.4pt; }
 .lvl.dense table.grid td.course div { -webkit-line-clamp: 1; max-width: 70mm; }
 .lvl.dense table.crit { display: none; }
-.lvl.xdense table.grid { font-size: 7.6pt; line-height: 1.08; } .lvl.xdense table.grid th, .lvl.xdense table.grid td { padding: 0 1mm; }
+.lvl.xxdense p.intro { display: none; } .lvl.xxdense table.grid { font-size: 7pt; line-height: 1.02; } .lvl.xxdense table.dist th, .lvl.xxdense table.dist td { font-size: 8pt; padding: 0 1mm; }
+.lvl.xdense table.grid { font-size: 7.3pt; line-height: 1.05; } .lvl.xdense table.grid th, .lvl.xdense table.grid td { padding: 0 1mm; }
 .lvl.xdense table.grid td.course { font-size: 6.8pt; } .lvl.xdense p { margin-bottom: .6mm; line-height: 1.3; } .lvl.xdense p.lead { margin: 1mm 0 .5mm; }
 .lvl.xdense .title { margin-bottom: 1mm; } .lvl.xdense h1 { font-size: 12.5pt; } .lvl.xdense h2 { font-size: 11.5pt; }
 `;
